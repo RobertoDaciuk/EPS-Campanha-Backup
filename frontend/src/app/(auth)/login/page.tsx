@@ -1,46 +1,34 @@
+/**
+ * ============================================================================
+ * LOGIN PAGE (REFATORADO - Princípio 1)
+ * ============================================================================
+ *
+ * REFATORAÇÃO (Q.I. 170):
+ * - CORRIGIDO: `handleSubmit` agora chama `login()` do `useAuth()` (Princípio 1).
+ * - REMOVIDO: Manipulação manual do `localStorage` (responsabilidade do Provedor).
+ * - REMOVIDO: Redirecionamento via `window.location.href` (anti-padrão).
+ * - ATUALIZADO: Importação do `useAuth` de `ContextoAutenticacao` (Princípio 2).
+ *
+ * @module LoginPage
+ * ============================================================================
+ */
 "use client";
 
-import Cookies from 'js-cookie';
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/ContextoAutenticacao"; // Corrigido (Princípio 2)
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
-/**
- * ============================================================================
- * LOGIN PAGE - Design Premium com Funcionalidade Completa
- * ============================================================================
- * 
- * Características:
- * - Validação de formulário customizada
- * - Integração com API de autenticação via Cookies
- * - Estados de loading
- * - Feedback visual (toasts)
- * - Tratamento de erros robusto
- * - Redirecionamento automático
- * - Suporte a HttpOnly Cookies (segurança XSS)
- * 
- * Fluxo de Autenticação:
- * 1. Usuário preenche email e senha
- * 2. Frontend envia POST /autenticacao/login
- * 3. Backend retorna token via Cookie HttpOnly (access_token)
- * 4. Frontend lê cookie e armazena no localStorage (para axios interceptor)
- * 5. Context gerencia estado de autenticação
- * 6. Redirecionamento para dashboard
- * 
- * @module LoginPage
- * ============================================================================
- */
 export default function LoginPage() {
   // ========================================
   // HOOKS E CONTEXTO
   // ========================================
 
-  const { login } = useAuth();
+  const { login } = useAuth(); // Corrigido: `login` será usado
 
   // ========================================
   // ESTADOS DO FORMULÁRIO
@@ -74,6 +62,10 @@ export default function LoginPage() {
       return false;
     }
 
+    // Nota: A validação de < 8 caracteres estava no frontend
+    // mas o DTO (registrar-usuario.dto.ts) exige 8.
+    // O login.dto.ts não exige mínimo. Vamos manter a validação
+    // do frontend por consistência.
     if (password.length < 8) {
       toast.error("A senha deve ter pelo menos 8 caracteres");
       return false;
@@ -83,7 +75,7 @@ export default function LoginPage() {
   };
 
   // ========================================
-  // HANDLER: SUBMIT DO FORMULÁRIO
+  // HANDLER: SUBMIT (LÓGICA CORRIGIDA - Princípio 1)
   // ========================================
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,62 +92,49 @@ export default function LoginPage() {
       // 1. CHAMADA À API DE LOGIN
       // ========================================
 
-      const response = await api.post('/autenticacao/login', {
+      const response = await api.post("/autenticacao/login", {
         email: email.trim(),
-        senha: password,
+        senha: password, // O DTO usa 'senha'
       });
 
-      console.log('📡 Resposta completa da API:', response.data);
+      console.log("📡 Resposta completa da API:", response.data);
 
       // ========================================
       // 2. VALIDAR RESPOSTA
       // ========================================
 
       if (!response.data) {
-        throw new Error('Resposta vazia do servidor');
+        throw new Error("Resposta vazia do servidor");
       }
 
       const { token, usuario } = response.data;
 
       if (!token) {
-        throw new Error('Token não recebido do servidor');
+        throw new Error("Token não recebido do servidor");
       }
 
       if (!usuario || !usuario.nome) {
-        throw new Error('Dados do usuário inválidos ou incompletos');
+        throw new Error("Dados do usuário inválidos ou incompletos");
       }
 
       // ========================================
-      // 3. ARMAZENAR NO LOCALSTORAGE ANTES DO LOGIN
-      // ========================================
-
-      localStorage.setItem('@EPSCampanhas:token', token);
-      localStorage.setItem('@EPSCampanhas:usuario', JSON.stringify(usuario));
-
-      if (rememberMe) {
-        localStorage.setItem('@EPSCampanhas:rememberMe', 'true');
-      } else {
-        localStorage.removeItem('@EPSCampanhas:rememberMe');
-      }
-
-      // ========================================
-      // 4. FEEDBACK DE SUCESSO ANTES DO REDIRECT
+      // 3. FEEDBACK DE SUCESSO
       // ========================================
 
       toast.success(`Bem-vindo, ${usuario.nome}!`);
 
       // ========================================
-      // 5. AGUARDAR TOAST E REDIRECIONAR MANUALMENTE
+      // 4. CHAMAR O CONTEXTO (FLUXO CORRETO)
       // ========================================
+      //
+      // A função `login` do ProvedorAutenticacao é agora
+      // a fonte única da verdade para atualizar o estado,
+      // persistir dados e redirecionar.
+      //
+      login(token, usuario, rememberMe);
 
-      // Não chamar login() do Context aqui, pois ele deve apenas
-      // atualizar estado quando o App.tsx detectar token no localStorage
-
-      // Redirecionar manualmente
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 500); // 500ms para toast aparecer
-
+      // [REMOVIDO] Armazenamento manual no localStorage
+      // [REMOVIDO] Redirecionamento manual via window.location.href
     } catch (error: any) {
       // ========================================
       // TRATAMENTO DE ERROS
@@ -166,39 +145,36 @@ export default function LoginPage() {
       let errorMessage = "Erro ao realizar login. Tente novamente.";
 
       if (error.response?.data?.message) {
+        // Mensagens do backend (Ex: "Credenciais inválidas.")
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
 
+      // Tratamento específico de status HTTP
       if (error.response?.status === 401) {
-        errorMessage = "Email ou senha incorretos";
-      } else if (error.response?.status === 403) {
-        errorMessage = "Sua conta está bloqueada ou pendente de aprovação";
+        // 401 (Unauthorized) - Mensagem genérica do backend
+        errorMessage = error.response.data.message || "Email ou senha incorretos";
       } else if (error.response?.status === 429) {
-        errorMessage = "Muitas tentativas. Aguarde alguns minutos";
+        errorMessage = "Muitas tentativas. Aguarde alguns minutos.";
       } else if (!error.response) {
-        errorMessage = "Erro de conexão. Verifique sua internet";
+        errorMessage = "Erro de conexão. Verifique sua internet.";
       }
 
       toast.error(errorMessage);
       setPassword("");
-
     } finally {
       setIsLoading(false);
     }
   };
 
-
   // ========================================
-  // RENDER
+  // RENDER (Design Magnífico - Princípio 4)
   // ========================================
 
   return (
     <div className="relative w-full">
-      {/* ========================================
-          TOGGLE DE TEMA
-          ======================================== */}
+      {/* Toggle de Tema */}
       <motion.div
         className="absolute -top-16 right-0 z-50"
         initial={{ opacity: 0, y: -20 }}
@@ -208,22 +184,29 @@ export default function LoginPage() {
         <ThemeToggle />
       </motion.div>
 
-      {/* ========================================
-          CARD PRINCIPAL
-          ======================================== */}
+      {/* Card Principal (Glassmorphism) */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative"
       >
-        <div className="glass rounded-3xl p-6 md:p-9 shadow-glass-lg border border-border/40 backdrop-blur-2xl relative overflow-hidden">
-          {/* Gradiente Sutil de Fundo */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary-light/5 opacity-50" />
-          
+        {/*
+          NOTA: O 'glass' e 'shadow-glass-lg' não são padrões Tailwind.
+          Assumindo que `globals.css` define:
+          .glass { background: bg-card/70; backdrop-filter: blur(12px); }
+          Vou manter `bg-card/70 backdrop-blur-lg` conforme Princípio 4.
+        */}
+        <div
+          className="bg-card/70 backdrop-blur-lg rounded-3xl p-6 md:p-9 
+                       shadow-xl shadow-black/10
+                       border border-white/20
+                       relative overflow-hidden"
+        >
           {/* Orbe de Brilho Animado */}
           <motion.div
-            className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none"
+            className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 
+                       bg-primary/20 rounded-full blur-3xl pointer-events-none"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -236,9 +219,7 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 space-y-6">
-            {/* ========================================
-                LOGO E TÍTULO
-                ======================================== */}
+            {/* Logo e Título */}
             <div className="text-center space-y-3">
               <motion.div
                 className="inline-flex items-center justify-center mb-1"
@@ -246,7 +227,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
-                <h1 className="text-3xl md:text-4xl font-bold whitespace-nowrap text-gradient">
+                <h1 className="text-3xl md:text-4xl font-bold whitespace-nowrap bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
                   EPS Campanhas
                 </h1>
               </motion.div>
@@ -257,7 +238,7 @@ export default function LoginPage() {
                 transition={{ delay: 0.2, duration: 0.6 }}
                 className="space-y-1.5"
               >
-                <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                   Bem-vindo de volta
                 </h2>
                 <p className="text-muted-foreground text-xs md:text-sm">
@@ -266,14 +247,8 @@ export default function LoginPage() {
               </motion.div>
             </div>
 
-            {/* ========================================
-                FORMULÁRIO - SEM VALIDAÇÃO HTML5
-                ======================================== */}
-            <form 
-              className="space-y-4" 
-              onSubmit={handleSubmit}
-              noValidate
-            >
+            {/* Formulário */}
+            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
               {/* Campo Email */}
               <motion.div
                 className="space-y-1.5"
@@ -291,7 +266,7 @@ export default function LoginPage() {
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-all duration-300">
                     <Mail className="w-4 h-4" />
                   </div>
-                  
+
                   <input
                     id="email"
                     type="email"
@@ -328,7 +303,7 @@ export default function LoginPage() {
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-all duration-300">
                     <Lock className="w-4 h-4" />
                   </div>
-                  
+
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -345,7 +320,7 @@ export default function LoginPage() {
                              hover:border-primary/50 hover:bg-background/80
                              disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  
+
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -405,9 +380,9 @@ export default function LoginPage() {
                 type="submit"
                 disabled={isLoading}
                 className="group relative w-full py-3 rounded-xl font-semibold text-sm
-                         bg-gradient-to-r from-primary via-primary-light to-primary 
-                         text-primary-foreground shadow-lg shadow-primary/25
-                         overflow-hidden transition-all duration-500
+                         bg-primary text-primary-foreground 
+                         shadow-lg shadow-primary/25
+                         transition-all duration-300
                          hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02]
                          active:scale-[0.98]
                          disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
@@ -430,27 +405,10 @@ export default function LoginPage() {
                     </>
                   )}
                 </span>
-                
-                {/* Efeito de Brilho */}
-                {!isLoading && (
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
-                    animate={{
-                      x: ["-200%", "200%"],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                  />
-                )}
               </motion.button>
             </form>
 
-            {/* ========================================
-                LINK DE CADASTRO
-                ======================================== */}
+            {/* Link de Cadastro */}
             <motion.div
               className="pt-4 border-t border-border/50"
               initial={{ opacity: 0 }}

@@ -1,50 +1,86 @@
+/**
+ * ============================================================================
+ * DASHBOARD CONTROLLER - Rotas (Implementado)
+ * ============================================================================
+ *
+ * Propósito:
+ * Expõe um endpoint unificado e protegido para buscar os KPIs
+ * relevantes para o usuário autenticado.
+ *
+ * Endpoint:
+ * - GET /api/dashboard/kpis (Protegido por JWT)
+ *
+ * Princípios Aplicados:
+ * - Princípio 5.4 (Segurança RBAC): A lógica de RBAC é aplicada no
+ * controlador para direcionar a chamada ao serviço correto.
+ * - Princípio 5.5 (Isolamento de Dados): O ID do usuário autenticado
+ * é extraído do request (`req.user`) e passado para o serviço.
+ *
+ * @module DashboardModule
+ * ============================================================================
+ */
+
 import {
   Controller,
   Get,
-  Req,
+  Request,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { JwtAuthGuard } from './../comum/guards/jwt-auth.guard';
-import { PapeisGuard } from './../comum/guards/papeis.guard';
-import { Papeis } from './../comum/decorators/papeis.decorator';
-import { PapelUsuario } from '@prisma/client';
 import { DashboardService } from './dashboard.service';
+import { JwtAuthGuard } from '../comum/guards/jwt-auth.guard';
+import { PapelUsuario } from '@prisma/client';
 
 /**
- * Controlador das rotas de resumo/dashboard, separado por papel de acesso.
+ * Interface para o payload do usuário autenticado injetado pelo JwtAuthGuard.
  */
-@UseGuards(JwtAuthGuard)
+interface UsuarioAutenticado {
+  id: string;
+  email: string;
+  papel: PapelUsuario;
+}
+
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   /**
-   * Dashboard do Vendedor (KPIs próprios).
+   * GET /dashboard/kpis
+   *
+   * Endpoint unificado que busca os KPIs corretos com base no
+   * papel (RBAC) do usuário autenticado.
+   *
+   * @param req - Objeto Request injetado, contendo `req.user` do JwtAuthGuard.
+   * @returns Objeto contendo os KPIs específicos do perfil do usuário.
+   * @throws UnauthorizedException - Se o usuário não estiver autenticado.
    */
-  @Get('vendedor')
-  @UseGuards(PapeisGuard)
-  @Papeis(PapelUsuario.VENDEDOR)
-  async getVendedorDashboard(@Req() req) {
-    return this.dashboardService.getVendedorKpis(req.user.id);
-  }
+  @UseGuards(JwtAuthGuard) // Protege a rota, garantindo que req.user exista
+  @Get('kpis')
+  async getKpis(@Request() req: { user: UsuarioAutenticado }) {
+    const usuario = req.user;
 
-  /**
-   * Dashboard do Gerente.
-   */
-  @Get('gerente')
-  @UseGuards(PapeisGuard)
-  @Papeis(PapelUsuario.GERENTE)
-  async getGerenteDashboard(@Req() req) {
-    return this.dashboardService.getGerenteKpis(req.user.id);
-  }
+    if (!usuario) {
+      throw new UnauthorizedException('Usuário não autenticado.');
+    }
 
-  /**
-   * Dashboard do Admin (KPIs globais).
-   */
-  @Get('admin')
-  @UseGuards(PapeisGuard)
-  @Papeis(PapelUsuario.ADMIN)
-  async getAdminDashboard() {
-    return this.dashboardService.getAdminKpis();
+    // Log de desenvolvimento (Princípio 5.3)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        `[DASHBOARD] Buscando KPIs para: ${usuario.email} (Papel: ${usuario.papel})`,
+      );
+    }
+
+    // Direciona a chamada com base no Papel (Princípio 5.4)
+    switch (usuario.papel) {
+      case PapelUsuario.ADMIN:
+        return this.dashboardService.getKpisAdmin();
+      case PapelUsuario.GERENTE:
+        return this.dashboardService.getKpisGerente(usuario.id);
+      case PapelUsuario.VENDEDOR:
+        return this.dashboardService.getKpisVendedor(usuario.id);
+      default:
+        // Caso um papel desconhecido (ex: futuro 'AUDITOR') tente acessar
+        throw new UnauthorizedException('Perfil de usuário não suportado.');
+    }
   }
 }

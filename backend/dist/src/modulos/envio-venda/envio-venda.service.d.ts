@@ -10,9 +10,9 @@ export declare class EnvioVendaService {
     constructor(prisma: PrismaService, recompensaService: RecompensaService);
     criar(dto: CriarEnvioVendaDto, vendedorId: string): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         campanhaId: string;
         requisitoId: string;
         numeroPedido: string;
@@ -33,14 +33,14 @@ export declare class EnvioVendaService {
         };
         vendedor: {
             id: string;
-            email: string;
             nome: string;
+            email: string;
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         campanhaId: string;
         requisitoId: string;
         numeroPedido: string;
@@ -63,9 +63,9 @@ export declare class EnvioVendaService {
     }[]>;
     validarManual(envioId: string): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         campanhaId: string;
         requisitoId: string;
         numeroPedido: string;
@@ -78,9 +78,9 @@ export declare class EnvioVendaService {
     }>;
     rejeitarManual(envioId: string, dto: RejeitarManualDto): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         campanhaId: string;
         requisitoId: string;
         numeroPedido: string;

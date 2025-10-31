@@ -1,36 +1,25 @@
 import { PrismaService } from '../../prisma/prisma.service';
-import { RankingService } from './../ranking/ranking.service';
 export declare class DashboardService {
     private readonly prisma;
-    private readonly rankingService;
-    constructor(prisma: PrismaService, rankingService: RankingService);
-    getVendedorKpis(usuarioId: string): Promise<{
+    constructor(prisma: PrismaService);
+    getKpisAdmin(): Promise<{
+        usuariosPendentes: number;
+        vendasEmAnalise: number;
+        resgatesSolicitados: number;
+        oticasAtivas: number;
+    }>;
+    getKpisGerente(usuarioId: string): Promise<{
+        totalVendedores: number;
+        vendasTimeAnalise: number;
+        comissaoPendente: number;
+        totalMoedinhasTime: number;
+    }>;
+    getKpisVendedor(usuarioId: string): Promise<{
         saldoMoedinhas: number;
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
+        vendasAprovadas: number;
+        cartelasCompletas: number;
         posicaoRanking: number;
-        totalCampanhasAtivas: number;
-    }>;
-    getGerenteKpis(usuarioId: string): Promise<{
-        melhorVendedor: {
-            id: string;
-            nome: string;
-            avatarUrl: string;
-            rankingMoedinhas: number;
-        };
-        ganhosPendentesGerencia: number | import("@prisma/client/runtime/library").Decimal;
-        rankingEquipe: {
-            id: string;
-            nome: string;
-            avatarUrl: string;
-            rankingMoedinhas: number;
-        }[];
-    }>;
-    getAdminKpis(): Promise<{
-        totalUsuarios: number;
-        totalCampanhasAtivas: number;
-        totalVendasValidadas: number;
-        totalMoedinhasDistribuidas: number;
-        totalFinanceiroPendente: number | import("@prisma/client/runtime/library").Decimal;
     }>;
 }

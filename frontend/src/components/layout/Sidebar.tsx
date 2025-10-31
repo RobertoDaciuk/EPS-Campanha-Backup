@@ -1,3 +1,15 @@
+/**
+ * ============================================================================
+ * SIDEBAR (Corrigido)
+ * ============================================================================
+ *
+ * CORREÇÃO (Princípio 2):
+ * - Importado `useAuth` de `ContextoAutenticacao` (PT-BR)
+ * em vez de `AuthContext`.
+ *
+ * @module Sidebar
+ * ============================================================================
+ */
 "use client";
 
 import React, { useMemo } from "react";
@@ -5,14 +17,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, X } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+// CORRIGIDO: Importa o hook do contexto em PT-BR (Princípio 2)
+import { useAuth } from "@/contexts/ContextoAutenticacao";
 import { ALL_MENU_ITEMS, PapelUsuario } from "@/config/menuItems";
 
 /**
  * Sidebar - Barra lateral de navegação dinâmica e responsiva
- * 
+ *
  * Renderiza itens de menu com base no papel (role) do usuário autenticado.
- * 
+ *
  * @param isOpen - Estado de abertura (mobile)
  * @param setIsOpen - Função para controlar abertura
  */
@@ -33,23 +46,30 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
     const userRole = usuario.papel as PapelUsuario;
 
-    const accessibleItems = ALL_MENU_ITEMS.filter(item => 
-      item.roles.includes(userRole)
+    const accessibleItems = ALL_MENU_ITEMS.filter((item) =>
+      item.roles.includes(userRole),
     );
-    
-    const mainItems = accessibleItems.filter(item => item.position === 'main');
-    const footerItems = accessibleItems.filter(item => item.position === 'footer');
+
+    const mainItems = accessibleItems.filter(
+      (item) => item.position === "main",
+    );
+    const footerItems = accessibleItems.filter(
+      (item) => item.position === "footer",
+    );
 
     return [mainItems, footerItems];
   }, [usuario?.papel]);
-
 
   // Verifica se o link está ativo
   const isLinkActive = (href: string) => {
     if (href === "/") {
       return pathname === "/";
     }
-    return pathname.startsWith(href);
+    // Corrigido para dashboard:
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
+    }
+    return pathname.startsWith(href) && href !== "/dashboard";
   };
 
   // Handler do logout
@@ -103,12 +123,14 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             key={link.href}
             href={link.href}
             onClick={onClick}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 group ${active ? "bg-accent" : ""}`}
+            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 group ${
+              active ? "bg-accent" : ""
+            }`}
           >
             <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
             <span className="font-medium">{link.label}</span>
           </Link>
-        )
+        );
       })}
       <button
         onClick={handleLogout}
@@ -119,7 +141,6 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       </button>
     </>
   );
-
 
   return (
     <>
@@ -141,7 +162,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <aside className="hidden md:block sticky top-0 h-screen w-64 bg-card border-r border-border">
         <div className="flex flex-col h-full p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gradient">EPS</h2>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
+              EPS
+            </h2>
             <p className="text-xs text-muted-foreground mt-1">Campanhas</p>
           </div>
           <nav className="flex-1 space-y-2">
@@ -166,7 +189,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             <div className="flex flex-col h-full p-6">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-bold text-gradient">EPS</h2>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
+                    EPS
+                  </h2>
                   <p className="text-xs text-muted-foreground mt-1">
                     Campanhas
                   </p>

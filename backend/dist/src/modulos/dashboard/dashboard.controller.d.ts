@@ -1,34 +1,32 @@
 import { DashboardService } from './dashboard.service';
+import { PapelUsuario } from '@prisma/client';
+interface UsuarioAutenticado {
+    id: string;
+    email: string;
+    papel: PapelUsuario;
+}
 export declare class DashboardController {
     private readonly dashboardService;
     constructor(dashboardService: DashboardService);
-    getVendedorDashboard(req: any): Promise<{
+    getKpis(req: {
+        user: UsuarioAutenticado;
+    }): Promise<{
+        usuariosPendentes: number;
+        vendasEmAnalise: number;
+        resgatesSolicitados: number;
+        oticasAtivas: number;
+    } | {
+        totalVendedores: number;
+        vendasTimeAnalise: number;
+        comissaoPendente: number;
+        totalMoedinhasTime: number;
+    } | {
         saldoMoedinhas: number;
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
+        vendasAprovadas: number;
+        cartelasCompletas: number;
         posicaoRanking: number;
-        totalCampanhasAtivas: number;
-    }>;
-    getGerenteDashboard(req: any): Promise<{
-        melhorVendedor: {
-            id: string;
-            nome: string;
-            avatarUrl: string;
-            rankingMoedinhas: number;
-        };
-        ganhosPendentesGerencia: number | import("@prisma/client/runtime/library").Decimal;
-        rankingEquipe: {
-            id: string;
-            nome: string;
-            avatarUrl: string;
-            rankingMoedinhas: number;
-        }[];
-    }>;
-    getAdminDashboard(): Promise<{
-        totalUsuarios: number;
-        totalCampanhasAtivas: number;
-        totalVendasValidadas: number;
-        totalMoedinhasDistribuidas: number;
-        totalFinanceiroPendente: number | import("@prisma/client/runtime/library").Decimal;
     }>;
 }
+export {};

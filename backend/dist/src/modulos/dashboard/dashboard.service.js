@@ -12,78 +12,127 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const ranking_service_1 = require("./../ranking/ranking.service");
 const client_1 = require("@prisma/client");
 let DashboardService = class DashboardService {
-    constructor(prisma, rankingService) {
+    constructor(prisma) {
         this.prisma = prisma;
-        this.rankingService = rankingService;
     }
-    async getVendedorKpis(usuarioId) {
-        const usuario = await this.prisma.usuario.findUnique({
-            where: { id: usuarioId },
-            select: { saldoMoedinhas: true, rankingMoedinhas: true, nivel: true },
-        });
-        if (!usuario)
-            throw new Error('Usuário não encontrado.');
-        const { posicao } = await this.rankingService.getPosicaoUsuario(usuarioId);
-        const campanhasAtivasCount = await this.prisma.campanha.count({
-            where: { status: 'ATIVA' },
-        });
+    async getKpisAdmin() {
+        const [usuariosPendentes, vendasEmAnalise, resgatesSolicitados, oticasAtivas,] = await this.prisma.$transaction([
+            this.prisma.usuario.count({
+                where: { status: 'PENDENTE' },
+            }),
+            this.prisma.envioVenda.count({
+                where: { status: 'EM_ANALISE' },
+            }),
+            this.prisma.resgatePremio.count({
+                where: { status: 'SOLICITADO' },
+            }),
+            this.prisma.optica.count({
+                where: { ativa: true },
+            }),
+        ]);
         return {
-            saldoMoedinhas: usuario.saldoMoedinhas,
-            rankingMoedinhas: usuario.rankingMoedinhas,
-            nivel: usuario.nivel,
-            posicaoRanking: posicao,
-            totalCampanhasAtivas: campanhasAtivasCount,
+            usuariosPendentes,
+            vendasEmAnalise,
+            resgatesSolicitados,
+            oticasAtivas,
         };
     }
-    async getGerenteKpis(usuarioId) {
-        const rankingEquipe = await this.rankingService.getRankingEquipe(usuarioId);
-        const melhorVendedor = rankingEquipe.length > 0 ? rankingEquipe[0] : null;
-        const somaPendentes = await this.prisma.relatorioFinanceiro.aggregate({
-            _sum: { valor: true },
-            where: {
-                usuarioId,
-                tipo: 'GERENTE',
-                status: client_1.StatusPagamento.PENDENTE,
-            },
-        });
+    async getKpisGerente(usuarioId) {
+        const [totalVendedores, vendasTimeAnalise, comissaoPendente, totalMoedinhasTime,] = await this.prisma.$transaction([
+            this.prisma.usuario.count({
+                where: { gerenteId: usuarioId },
+            }),
+            this.prisma.envioVenda.count({
+                where: {
+                    vendedor: {
+                        gerenteId: usuarioId,
+                    },
+                    status: 'EM_ANALISE',
+                },
+            }),
+            this.prisma.relatorioFinanceiro.aggregate({
+                _sum: {
+                    valor: true,
+                },
+                where: {
+                    usuarioId: usuarioId,
+                    tipo: 'GERENTE',
+                    status: 'PENDENTE',
+                },
+            }),
+            this.prisma.usuario.aggregate({
+                _sum: {
+                    rankingMoedinhas: true,
+                },
+                where: {
+                    gerenteId: usuarioId,
+                },
+            }),
+        ]);
         return {
-            melhorVendedor,
-            ganhosPendentesGerencia: somaPendentes._sum.valor ?? 0,
-            rankingEquipe,
+            totalVendedores: totalVendedores ?? 0,
+            vendasTimeAnalise: vendasTimeAnalise ?? 0,
+            comissaoPendente: comissaoPendente._sum.valor?.toNumber() ?? 0,
+            totalMoedinhasTime: totalMoedinhasTime._sum.rankingMoedinhas ?? 0,
         };
     }
-    async getAdminKpis() {
-        const totalUsuarios = await this.prisma.usuario.count();
-        const totalCampanhasAtivas = await this.prisma.campanha.count({
-            where: { status: 'ATIVA' },
-        });
-        const totalVendasValidadas = await this.prisma.envioVenda.count({
-            where: { status: 'VALIDADO' },
-        });
-        const somaMoedinhas = await this.prisma.campanha.aggregate({
-            _sum: { moedinhasPorCartela: true },
-            where: { cartelasConcluidas: { some: {} } },
-        });
-        const somaFinanceiro = await this.prisma.relatorioFinanceiro.aggregate({
-            _sum: { valor: true },
-            where: { status: client_1.StatusPagamento.PENDENTE },
-        });
+    async getKpisVendedor(usuarioId) {
+        const [usuario, vendasAprovadas, cartelasCompletas, posicaoRankingResult,] = await this.prisma.$transaction([
+            this.prisma.usuario.findUnique({
+                where: { id: usuarioId },
+                select: {
+                    saldoMoedinhas: true,
+                    rankingMoedinhas: true,
+                    nivel: true,
+                },
+            }),
+            this.prisma.envioVenda.count({
+                where: {
+                    vendedorId: usuarioId,
+                    status: 'VALIDADO',
+                },
+            }),
+            this.prisma.cartelaConcluida.count({
+                where: { vendedorId: usuarioId },
+            }),
+            this.prisma.$queryRaw(client_1.Prisma.sql `
+          WITH Ranking AS (
+            SELECT
+              id,
+              "rankingMoedinhas",
+              ROW_NUMBER() OVER (ORDER BY "rankingMoedinhas" DESC, "criadoEm" ASC) as posicao
+            FROM
+              "usuarios"
+            WHERE
+              papel = ${client_1.PapelUsuario.VENDEDOR}::"PapelUsuario"
+              AND status = ${client_1.StatusUsuario.ATIVO}::"StatusUsuario"
+          )
+          SELECT
+            posicao
+          FROM
+            Ranking
+          WHERE
+            id = ${usuarioId}
+        `),
+        ]);
+        const posicaoRanking = posicaoRankingResult.length > 0
+            ? Number(posicaoRankingResult[0].posicao)
+            : 0;
         return {
-            totalUsuarios,
-            totalCampanhasAtivas,
-            totalVendasValidadas,
-            totalMoedinhasDistribuidas: somaMoedinhas._sum.moedinhasPorCartela ?? 0,
-            totalFinanceiroPendente: somaFinanceiro._sum.valor ?? 0,
+            saldoMoedinhas: usuario?.saldoMoedinhas ?? 0,
+            rankingMoedinhas: usuario?.rankingMoedinhas ?? 0,
+            nivel: usuario?.nivel ?? 'BRONZE',
+            vendasAprovadas: vendasAprovadas ?? 0,
+            cartelasCompletas: cartelasCompletas ?? 0,
+            posicaoRanking,
         };
     }
 };
 exports.DashboardService = DashboardService;
 exports.DashboardService = DashboardService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        ranking_service_1.RankingService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], DashboardService);
 //# sourceMappingURL=dashboard.service.js.map

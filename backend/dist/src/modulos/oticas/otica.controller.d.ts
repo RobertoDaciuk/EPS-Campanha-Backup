@@ -8,73 +8,73 @@ export declare class OticaController {
     constructor(oticaService: OticaService);
     verificarCnpj(cnpj: string): Promise<{
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     listarTudo(): Promise<{
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }[]>;
     buscarPorId(id: string): Promise<{
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     listarAdmin(filtros: ListarOticasFiltroDto): Promise<({
         matriz: {
             id: string;
-            nome: string;
             cnpj: string;
+            nome: string;
         };
         filiais: {
             id: string;
-            nome: string;
             cnpj: string;
+            nome: string;
         }[];
     } & {
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     })[]>;
     criar(dto: CriarOticaDto): Promise<{
@@ -84,43 +84,43 @@ export declare class OticaController {
         };
     } & {
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     buscarPorIdAdmin(id: string): Promise<{
         matriz: {
             id: string;
-            nome: string;
             cnpj: string;
+            nome: string;
         };
         filiais: {
             id: string;
-            nome: string;
             cnpj: string;
+            nome: string;
         }[];
     } & {
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     atualizar(id: string, dto: AtualizarOticaDto): Promise<{
@@ -134,47 +134,47 @@ export declare class OticaController {
         }[];
     } & {
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     desativar(id: string): Promise<{
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
     reativar(id: string): Promise<{
         id: string;
-        email: string | null;
-        nome: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cnpj: string;
+        nome: string;
         endereco: string | null;
         cidade: string | null;
         estado: string | null;
         telefone: string | null;
+        email: string | null;
         ativa: boolean;
         ehMatriz: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
         matrizId: string | null;
     }>;
 }

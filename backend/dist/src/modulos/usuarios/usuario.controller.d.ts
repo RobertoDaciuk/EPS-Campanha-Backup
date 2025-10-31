@@ -8,9 +8,11 @@ export declare class UsuarioController {
     constructor(usuarioService: UsuarioService);
     listar(filtros: ListarUsuariosFiltroDto): Promise<{
         id: string;
-        email: string;
-        cpf: string | null;
         nome: string;
+        email: string;
+        criadoEm: Date;
+        atualizadoEm: Date;
+        cpf: string | null;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -22,17 +24,17 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-        criadoEm: Date;
-        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }[]>;
     criar(dados: CriarUsuarioAdminDto): Promise<import("./usuario.service").CriacaoUsuarioResposta>;
     buscarPorId(id: string): Promise<{
         id: string;
-        email: string;
-        cpf: string | null;
         nome: string;
+        email: string;
+        criadoEm: Date;
+        atualizadoEm: Date;
+        cpf: string | null;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -44,16 +46,16 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-        criadoEm: Date;
-        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
     atualizar(id: string, dados: AtualizarUsuarioDto): Promise<{
         id: string;
-        email: string;
-        cpf: string | null;
         nome: string;
+        email: string;
+        criadoEm: Date;
+        atualizadoEm: Date;
+        cpf: string | null;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -65,16 +67,16 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-        criadoEm: Date;
-        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
     remover(id: string): Promise<{
         id: string;
-        email: string;
-        cpf: string | null;
         nome: string;
+        email: string;
+        criadoEm: Date;
+        atualizadoEm: Date;
+        cpf: string | null;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -86,8 +88,6 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-        criadoEm: Date;
-        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
@@ -95,9 +95,11 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            email: string;
-            cpf: string | null;
             nome: string;
+            email: string;
+            criadoEm: Date;
+            atualizadoEm: Date;
+            cpf: string | null;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -109,8 +111,6 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-            criadoEm: Date;
-            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };
@@ -119,9 +119,11 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            email: string;
-            cpf: string | null;
             nome: string;
+            email: string;
+            criadoEm: Date;
+            atualizadoEm: Date;
+            cpf: string | null;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -133,8 +135,6 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-            criadoEm: Date;
-            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };
@@ -143,9 +143,11 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            email: string;
-            cpf: string | null;
             nome: string;
+            email: string;
+            criadoEm: Date;
+            atualizadoEm: Date;
+            cpf: string | null;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -157,8 +159,6 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
-            criadoEm: Date;
-            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };

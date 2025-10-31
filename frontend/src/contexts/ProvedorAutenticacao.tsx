@@ -1,43 +1,28 @@
-"use client";
-
 /**
  * ============================================================================
- * AUTH PROVIDER - Provedor de Contexto de Autenticação (REFATORADO)
+ * PROVEDOR DE AUTENTICAÇÃO (Corrigido)
  * ============================================================================
  *
- * REFATORAÇÃO (Sprint 18.3 - Correção de Login):
- * - SIMPLIFICADO: Método login() agora apenas armazena dados localmente
- * - CORRIGIDO: Não busca usuário novamente após login (dados já vêm da API)
- * - MELHORADO: Validação inicial usa localStorage em vez de API
- * - RESULTADO: Login rápido e sem erros de "nome undefined"
+ * REFATORAÇÃO (Q.I. 170):
+ * - CORRIGIDO: `router.push("/dashboard")` alterado para `router.push("/")`.
+ * - MOTIVO: A estrutura de arquivos `(dashboard)/page.tsx` indica um
+ * Grupo de Rota do Next.js, que serve a página na raiz (`/`),
+ * não em `/dashboard`.
  *
- * Descrição:
- * Provedor de autenticação que gerencia todo o estado de autenticação
- * da aplicação, incluindo token JWT, dados do usuário, persistência
- * no localStorage e redirecionamentos.
- *
- * Responsabilidades:
- * - Armazenar token JWT e dados do usuário
- * - Persistir token e usuário no localStorage
- * - Validar token automaticamente ao carregar aplicação
- * - Injetar token no header Authorization via Axios
- * - Redirecionar para login se não autenticado
- * - Redirecionar para dashboard após login
- * - Fornecer funções login() e logout() para componentes
- *
- * @module AuthProvider
+ * @module ProvedorAutenticacao
  * ============================================================================
  */
+"use client";
 
 import { ReactNode, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AuthContext, Usuario } from "./AuthContext";
+import { ContextoAutenticacao, Usuario } from "./ContextoAutenticacao";
 import api from "@/lib/axios";
 
 /**
- * Props do AuthProvider.
+ * Props do ProvedorAutenticacao.
  */
-interface AuthProviderProps {
+interface ProvedorAutenticacaoProps {
   children: ReactNode;
 }
 
@@ -50,12 +35,12 @@ const USUARIO_KEY = "@EPSCampanhas:usuario";
 /**
  * Rotas públicas que não requerem autenticação.
  */
-const PUBLIC_ROUTES = ["/login", "/registro", "/recuperar-senha"];
+const ROTAS_PUBLICAS = ["/login", "/registro", "/recuperar-senha"];
 
 /**
- * Provedor de Autenticação.
+ * Provedor de Autenticação (Refatorado).
  */
-export function AuthProvider({ children }: AuthProviderProps) {
+export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -68,21 +53,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [carregando, setCarregando] = useState(true);
 
   // ========================================
-  // FUNÇÕES DE AUTENTICAÇÃO
+  // FUNÇÕES DE AUTENTICAÇÃO (LÓGICA CORRIGIDA)
   // ========================================
 
   /**
-   * Função de login.
-   * 
-   * SIMPLIFICADO: Apenas armazena dados localmente e redireciona.
-   * Não faz requisição à API (dados já foram validados no page.tsx).
-   * 
+   * Função de login (CORRIGIDA).
+   *
    * @param novoToken - Token JWT retornado pelo backend
    * @param dadosUsuario - Dados do usuário retornados pelo backend
+   * @param lembrar - Flag "Lembrar-me" vinda da página de login
    */
   const login = useCallback(
-    (novoToken: string, dadosUsuario: Usuario) => {
-      // Armazenar no localStorage
+    (novoToken: string, dadosUsuario: Usuario, lembrar: boolean) => {
       localStorage.setItem(TOKEN_KEY, novoToken);
       localStorage.setItem(USUARIO_KEY, JSON.stringify(dadosUsuario));
 
@@ -93,28 +75,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Injetar token no header do Axios
       api.defaults.headers.common["Authorization"] = `Bearer ${novoToken}`;
 
-      // Redirecionar para dashboard
-      router.push("/dashboard");
+      // CORRIGIDO: Redirecionar para a rota raiz "/"
+      // O (dashboard)/page.tsx é servido em "/"
+      router.push("/");
     },
-    [router]
+    [router],
   );
 
   /**
    * Função de logout.
    */
   const logout = useCallback(() => {
-    // Remover do localStorage
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USUARIO_KEY);
 
-    // Limpar estados
     setToken(null);
     setUsuario(null);
 
-    // Remover token do header do Axios
     delete api.defaults.headers.common["Authorization"];
 
-    // Redirecionar para login
     router.push("/login");
   }, [router]);
 
@@ -122,12 +101,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // CARREGAMENTO INICIAL
   // ========================================
 
-  /**
-   * Carrega autenticação do localStorage ao montar.
-   * 
-   * SIMPLIFICADO: Não faz requisição à API na inicialização.
-   * Confia nos dados armazenados localmente.
-   */
   useEffect(() => {
     const carregarAuth = () => {
       try {
@@ -136,18 +109,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (tokenArmazenado && usuarioArmazenado) {
           const dadosUsuario = JSON.parse(usuarioArmazenado);
-
-          // Atualizar estados
           setToken(tokenArmazenado);
           setUsuario(dadosUsuario);
-
-          // Injetar token no header do Axios
-          api.defaults.headers.common["Authorization"] = `Bearer ${tokenArmazenado}`;
+          api.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${tokenArmazenado}`;
         }
       } catch (erro) {
-        console.error("[AuthProvider] Erro ao carregar autenticação:", erro);
-        
-        // Limpar localStorage em caso de erro
+        console.error(
+          "[ProvedorAutenticacao] Erro ao carregar autenticação:",
+          erro,
+        );
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USUARIO_KEY);
       } finally {
@@ -162,16 +134,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // PROTEÇÃO DE ROTAS
   // ========================================
 
-  /**
-   * Redireciona usuário para login se não autenticado.
-   */
   useEffect(() => {
-    // Se ainda carregando, aguardar
     if (carregando) {
       return;
     }
 
-    const rotaPublica = PUBLIC_ROUTES.includes(pathname);
+    const rotaPublica = ROTAS_PUBLICAS.includes(pathname);
 
     // Se não autenticado e rota não é pública, redirecionar para login
     if (!token && !rotaPublica) {
@@ -179,9 +147,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    // Se autenticado e está na rota de login, redirecionar para dashboard
+    // Se autenticado e está na rota de login, redirecionar para a raiz
     if (token && pathname === "/login") {
-      router.push("/dashboard");
+      // CORRIGIDO: Redirecionar para a rota raiz "/"
+      router.push("/");
     }
   }, [pathname, carregando, token, router]);
 
@@ -189,9 +158,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // RENDER
   // ========================================
 
-  /**
-   * Loading state durante inicialização.
-   */
   if (carregando) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -207,7 +173,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Fornece contexto de autenticação para toda a aplicação.
    */
   return (
-    <AuthContext.Provider
+    <ContextoAutenticacao.Provider
       value={{
         token,
         usuario,
@@ -218,6 +184,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }}
     >
       {children}
-    </AuthContext.Provider>
+    </ContextoAutenticacao.Provider>
   );
 }

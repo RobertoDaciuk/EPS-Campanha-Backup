@@ -7,8 +7,8 @@ export declare class RelatorioFinanceiroService {
     listar(filtros: ListarRelatoriosFiltroDto): Promise<({
         usuario: {
             id: string;
-            email: string;
             nome: string;
+            email: string;
         };
         campanha: {
             id: string;
@@ -16,22 +16,22 @@ export declare class RelatorioFinanceiroService {
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;
+        usuarioId: string;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
-        usuarioId: string;
     })[]>;
     buscarPorId(id: string): Promise<{
         usuario: {
             id: string;
-            email: string;
             nome: string;
+            email: string;
         };
         campanha: {
             id: string;
@@ -39,28 +39,28 @@ export declare class RelatorioFinanceiroService {
         };
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;
+        usuarioId: string;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
-        usuarioId: string;
     }>;
     marcarComoPago(id: string): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;
+        usuarioId: string;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
-        usuarioId: string;
     }>;
 }

@@ -1,8 +1,20 @@
+/**
+ * ============================================================================
+ * LAYOUT RAIZ (Corrigido)
+ * ============================================================================
+ *
+ * CORREÇÃO (Princípio 2):
+ * - Importado `ProvedorAutenticacao` (PT-BR) em vez de `AuthProvider`.
+ *
+ * @module RootLayout
+ * ============================================================================
+ */
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { AuthProvider } from "@/contexts/AuthProvider";
+// CORRIGIDO: Importa o provedor com nome em PT-BR (Princípio 2)
+import { ProvedorAutenticacao } from "@/contexts/ProvedorAutenticacao";
 import { Toaster } from "react-hot-toast";
 
 // ==========================================
@@ -11,7 +23,6 @@ import { Toaster } from "react-hot-toast";
 
 /**
  * Fonte Principal - Inter
- * Fonte moderna e legível, ideal para interfaces
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -21,7 +32,6 @@ const inter = Inter({
 
 /**
  * Fonte Mono - JetBrains Mono
- * Para código e elementos técnicos
  */
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -37,13 +47,7 @@ export const metadata: Metadata = {
   title: "EPS Campanhas - Plataforma SaaS de Gestão de Campanhas",
   description:
     "Gerencie suas campanhas de marketing de forma eficiente e inteligente com a plataforma EPS Campanhas.",
-  keywords: [
-    "campanhas",
-    "marketing",
-    "gestão",
-    "saas",
-    "automação",
-  ],
+  keywords: ["campanhas", "marketing", "gestão", "saas", "automação"],
   authors: [{ name: "EPS Campanhas Team" }],
 };
 
@@ -65,6 +69,11 @@ export const viewport: Viewport = {
 // LAYOUT RAIZ
 // ==========================================
 
+/**
+ * Componente RootLayout.
+ * Define a estrutura HTML base e envolve a aplicação
+ * com todos os provedores de contexto necessários.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -75,13 +84,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        {/* 
-          ========================================
-          PROVIDERS HIERARCHY
+        {/* ========================================
+          HIERARQUIA DE PROVEDORES
           ========================================
           
           1. ThemeProvider: Gerencia tema (light/dark)
-          2. AuthProvider: Gerencia autenticação
+          2. ProvedorAutenticacao: Gerencia autenticação
           3. Children: Conteúdo da aplicação
           4. Toaster: Sistema de notificações
         */}
@@ -91,20 +99,18 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
+          {/* CORRIGIDO: Usa o provedor com nome em PT-BR (Princípio 2) */}
+          <ProvedorAutenticacao>
             {/* Conteúdo Principal da Aplicação */}
             {children}
 
-            {/* 
-              Sistema de Notificações Toast
-              Configurado com estilização baseada no tema
+            {/* Sistema de Notificações Toast
             */}
             <Toaster
               position="top-right"
               reverseOrder={false}
               gutter={8}
               toastOptions={{
-                // Estilos padrão para todos os toasts
                 duration: 4000,
                 style: {
                   background: "hsl(var(--card))",
@@ -114,7 +120,6 @@ export default function RootLayout({
                   padding: "16px",
                   fontSize: "14px",
                 },
-                // Estilos específicos por tipo
                 success: {
                   iconTheme: {
                     primary: "hsl(var(--success))",
@@ -129,7 +134,7 @@ export default function RootLayout({
                 },
               }}
             />
-          </AuthProvider>
+          </ProvedorAutenticacao>
         </ThemeProvider>
       </body>
     </html>

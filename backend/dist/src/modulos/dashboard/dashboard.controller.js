@@ -14,54 +14,43 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
-const jwt_auth_guard_1 = require("./../comum/guards/jwt-auth.guard");
-const papeis_guard_1 = require("./../comum/guards/papeis.guard");
-const papeis_decorator_1 = require("./../comum/decorators/papeis.decorator");
-const client_1 = require("@prisma/client");
 const dashboard_service_1 = require("./dashboard.service");
+const jwt_auth_guard_1 = require("../comum/guards/jwt-auth.guard");
+const client_1 = require("@prisma/client");
 let DashboardController = class DashboardController {
     constructor(dashboardService) {
         this.dashboardService = dashboardService;
     }
-    async getVendedorDashboard(req) {
-        return this.dashboardService.getVendedorKpis(req.user.id);
-    }
-    async getGerenteDashboard(req) {
-        return this.dashboardService.getGerenteKpis(req.user.id);
-    }
-    async getAdminDashboard() {
-        return this.dashboardService.getAdminKpis();
+    async getKpis(req) {
+        const usuario = req.user;
+        if (!usuario) {
+            throw new common_1.UnauthorizedException('Usuário não autenticado.');
+        }
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[DASHBOARD] Buscando KPIs para: ${usuario.email} (Papel: ${usuario.papel})`);
+        }
+        switch (usuario.papel) {
+            case client_1.PapelUsuario.ADMIN:
+                return this.dashboardService.getKpisAdmin();
+            case client_1.PapelUsuario.GERENTE:
+                return this.dashboardService.getKpisGerente(usuario.id);
+            case client_1.PapelUsuario.VENDEDOR:
+                return this.dashboardService.getKpisVendedor(usuario.id);
+            default:
+                throw new common_1.UnauthorizedException('Perfil de usuário não suportado.');
+        }
     }
 };
 exports.DashboardController = DashboardController;
 __decorate([
-    (0, common_1.Get)('vendedor'),
-    (0, common_1.UseGuards)(papeis_guard_1.PapeisGuard),
-    (0, papeis_decorator_1.Papeis)(client_1.PapelUsuario.VENDEDOR),
-    __param(0, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], DashboardController.prototype, "getVendedorDashboard", null);
-__decorate([
-    (0, common_1.Get)('gerente'),
-    (0, common_1.UseGuards)(papeis_guard_1.PapeisGuard),
-    (0, papeis_decorator_1.Papeis)(client_1.PapelUsuario.GERENTE),
-    __param(0, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], DashboardController.prototype, "getGerenteDashboard", null);
-__decorate([
-    (0, common_1.Get)('admin'),
-    (0, common_1.UseGuards)(papeis_guard_1.PapeisGuard),
-    (0, papeis_decorator_1.Papeis)(client_1.PapelUsuario.ADMIN),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], DashboardController.prototype, "getAdminDashboard", null);
-exports.DashboardController = DashboardController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('kpis'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getKpis", null);
+exports.DashboardController = DashboardController = __decorate([
     (0, common_1.Controller)('dashboard'),
     __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
 ], DashboardController);
