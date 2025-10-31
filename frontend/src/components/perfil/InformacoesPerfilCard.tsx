@@ -1,29 +1,30 @@
 /**
  * ============================================================================
- * CARD: INFORMAÇÕES DO PERFIL (Implementado) - Princípios 1, 3, 4
+ * CARD: INFORMAÇÕES DO PERFIL (Corrigido) - Princípios 1, 3, 4
  * ============================================================================
  *
  * Propósito:
  * Formulário para visualização e atualização dos dados cadastrais
  * do usuário (nome, email, whatsapp).
  *
- * Implementação:
- * - Busca dados de `GET /api/perfil/meu` via SWR.
- * - Envia atualizações para `PATCH /api/perfil/meu`.
- * - Usa `react-hook-form` e `zod` para validação robusta.
- * - Design Magnífico (Princípio 4).
+ * CORREÇÃO (Erros TS2353 e TS2345):
+ * - Removida a propriedade `enableReinitialize` (obsoleta).
+ * - Trocada a propriedade `values` por `defaultValues` no useForm.
+ * - Adicionado `useEffect` para chamar `reset(dadosPerfil)` quando
+ * os dados do SWR são carregados. Este é o padrão correto para
+ * popular formulários com dados assíncronos no react-hook-form.
  *
  * @module Perfil
  * ============================================================================
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Importado useEffect
 import { useAuth } from "@/contexts/ContextoAutenticacao";
 import useSWR, { mutate } from "swr";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form"; // Importado SubmitHandler
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { User, Mail, Phone, Loader2 } from "lucide-react";
@@ -37,10 +38,12 @@ const perfilSchema = z.object({
   email: z.string().email("Formato de email inválido."),
   whatsapp: z
     .string()
+    .transform((val) => (val === null || val === "" ? undefined : val))
     .optional()
     .refine(
       (val) =>
-        val === undefined || val === "" || /^\d{10,11}$/.test(val.replace(/\D/g, "")),
+        val === undefined ||
+        /^\d{10,11}$/.test(val.replace(/\D/g, "")),
       "O WhatsApp deve ter 10 ou 11 dígitos (DDD + número).",
     ),
 });
@@ -69,8 +72,8 @@ export function InformacoesPerfilCard() {
     "/perfil/meu",
     fetcherPerfil,
     {
-      // Popula dados iniciais com o contexto para evitar piscar
       fallbackData: usuario,
+      revalidateOnFocus: true,
     },
   );
 
@@ -80,20 +83,30 @@ export function InformacoesPerfilCard() {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<PerfilFormData>({
+  } = useForm<PerfilFormData>({ // O Genérico <PerfilFormData> está correto
     resolver: zodResolver(perfilSchema),
-    // Define valores padrão ou atuais assim que o SWR carregar
-    values: {
-      nome: dadosPerfil?.nome ?? "",
-      email: dadosPerfil?.email ?? "",
-      whatsapp: dadosPerfil?.whatsapp ?? "",
+    // CORRIGIDO: Usar defaultValues para estado inicial
+    defaultValues: {
+      nome: "",
+      email: "",
+      whatsapp: "",
     },
+    // CORRIGIDO: Removidas as propriedades 'values' e 'enableReinitialize'
   });
+
+  // CORRIGIDO: Usar useEffect para popular o formulário quando os dados do SWR chegam
+  useEffect(() => {
+    if (dadosPerfil) {
+      reset(dadosPerfil);
+    }
+  }, [dadosPerfil, reset]);
 
   /**
    * Handler para submissão do formulário.
+   * CORRIGIDO: Adicionada tipagem explícita a `onSubmit` para
+   * garantir a correspondência com `handleSubmit`.
    */
-  const onSubmit = async (dados: PerfilFormData) => {
+  const onSubmit: SubmitHandler<PerfilFormData> = async (dados) => {
     setEstaSalvando(true);
     toast.loading("Salvando alterações...", { id: "perfil-toast" });
 
@@ -104,8 +117,7 @@ export function InformacoesPerfilCard() {
       // Atualiza o cache do SWR localmente (mutação otimista)
       mutate("/perfil/meu", response.data, false);
 
-      // Atualiza o estado do AuthContext (se o nome mudou)
-      // TODO: Implementar atualização do AuthContext se o nome mudar
+      // TODO: Atualizar o AuthContext se o nome mudou.
 
       toast.success("Perfil atualizado com sucesso!", { id: "perfil-toast" });
       reset(response.data); // Reseta o formulário com os novos dados
@@ -113,14 +125,29 @@ export function InformacoesPerfilCard() {
       console.error("Erro ao atualizar perfil:", erro);
       const msgErro =
         erro.response?.data?.message ?? "Falha ao atualizar perfil.";
-      toast.error(msgErro, { id: "perfil-toast" });
+
+      // Trata mensagens de erro de validação (array)
+      if (Array.isArray(msgErro)) {
+        toast.error(msgErro.join(", "), { id: "perfil-toast" });
+      } else {
+        toast.error(msgErro, { id: "perfil-toast" });
+      }
     } finally {
       setEstaSalvando(false);
     }
   };
 
   // Estado de Carregamento (Princípio 4)
-  if (!dadosPerfil && !erroPerfil) {
+  if (erroPerfil) {
+     return (
+       <div className="bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl">
+         <h4 className="font-semibold">Erro ao carregar perfil</h4>
+         <p className="text-sm">{erroPerfil.message}</p>
+       </div>
+     );
+  }
+  
+  if (!dadosPerfil) {
     return (
       <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6 shadow-lg shadow-black/5 animate-pulse">
         <div className="h-6 bg-muted-foreground/20 rounded-md w-1/3 mb-4"></div>
@@ -136,7 +163,7 @@ export function InformacoesPerfilCard() {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit)} // Esta chamada agora é válida
       className="bg-card/70 backdrop-blur-lg 
                  border border-border/20 rounded-2xl 
                  shadow-lg shadow-black/5"

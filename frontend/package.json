@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
     "@headlessui/react": "^2.2.9",
     "axios": "^1.12.2",
     "framer-motion": "^12.23.24",
@@ -22,7 +23,8 @@
     "react-hot-toast": "^2.6.0",
     "swr": "^2.3.6",
     "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/js-cookie": "^3.0.6",
