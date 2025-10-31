@@ -549,7 +549,6 @@ export class UsuarioService {
       id: usuarioAlvo.id,
       email: usuarioAlvo.email,
       papel: usuarioAlvo.papel,
-      nome: usuarioAlvo.nome,
     });
     this.logger.log(
       `✅ Token de impersonação gerado: Admin personificando ${usuarioAlvo.nome} (${usuarioAlvo.email})`,
