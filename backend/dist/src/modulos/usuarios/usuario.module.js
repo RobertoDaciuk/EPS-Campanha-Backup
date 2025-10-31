@@ -17,7 +17,10 @@ let UsuarioModule = class UsuarioModule {
 exports.UsuarioModule = UsuarioModule;
 exports.UsuarioModule = UsuarioModule = __decorate([
     (0, common_1.Module)({
-        imports: [autenticacao_module_1.AutenticacaoModule, otica_module_1.OticaModule],
+        imports: [
+            (0, common_1.forwardRef)(() => autenticacao_module_1.AutenticacaoModule),
+            otica_module_1.OticaModule,
+        ],
         controllers: [usuario_controller_1.UsuarioController],
         providers: [usuario_service_1.UsuarioService],
         exports: [usuario_service_1.UsuarioService],

@@ -41,153 +41,285 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var AutenticacaoService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AutenticacaoService = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
-const config_1 = require("@nestjs/config");
-const prisma_service_1 = require("../../prisma/prisma.service");
 const bcrypt = __importStar(require("bcrypt"));
 const crypto = __importStar(require("crypto"));
-let AutenticacaoService = AutenticacaoService_1 = class AutenticacaoService {
-    constructor(prisma, jwtService, configService) {
+const prisma_service_1 = require("../../prisma/prisma.service");
+const usuario_service_1 = require("../usuarios/usuario.service");
+let AutenticacaoService = class AutenticacaoService {
+    constructor(prisma, jwtService, usuarioService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
-        this.configService = configService;
-        this.logger = new common_1.Logger(AutenticacaoService_1.name);
-        this.BCRYPT_SALT_ROUNDS = 10;
+        this.usuarioService = usuarioService;
     }
-    _limparCpf(cpf) {
-        const cpfLimpo = cpf.replace(/\D/g, '');
-        if (cpfLimpo.length !== 11) {
-            throw new common_1.BadRequestException(`CPF inválido. Deve conter exatamente 11 dígitos. Recebido: ${cpfLimpo.length} dígitos.`);
-        }
-        return cpfLimpo;
-    }
-    gerarToken(usuario) {
-        const payload = {
-            sub: usuario.id,
-            email: usuario.email,
-            papel: usuario.papel,
-        };
-        const accessToken = this.jwtService.sign(payload);
-        this.logger.log(`Token JWT gerado para usuário: ${usuario.email}`);
-        return {
-            accessToken,
-            usuario: {
-                id: usuario.id,
-                nome: usuario.nome,
-                email: usuario.email,
-                papel: usuario.papel,
-            },
-        };
-    }
-    async registrar(dados) {
-        this.logger.log(`Registrando novo vendedor: ${dados.email}`);
+    async registrar(dados, req) {
         const cpfLimpo = this._limparCpf(dados.cpf);
         const usuarioExistente = await this.prisma.usuario.findFirst({
             where: {
                 OR: [{ email: dados.email }, { cpf: cpfLimpo }],
             },
+            select: {
+                email: true,
+                cpf: true,
+            },
         });
         if (usuarioExistente) {
-            this.logger.warn(`Tentativa de cadastro duplicado: ${dados.email} ou CPF ${cpfLimpo}`);
-            if (usuarioExistente.email === dados.email) {
-                throw new common_1.ConflictException('Este email já está cadastrado');
-            }
-            else {
-                throw new common_1.ConflictException('Este CPF já está cadastrado');
-            }
+            const tipoDuplicacao = usuarioExistente.email === dados.email
+                ? 'REGISTRO_DUPLICADO_EMAIL'
+                : 'REGISTRO_DUPLICADO_CPF';
+            await this._registrarlogAutenticacao({
+                tipo: tipoDuplicacao,
+                email: dados.email,
+                cpf: cpfLimpo,
+                usuarioId: null,
+                req,
+                detalhes: {
+                    motivo: tipoDuplicacao === 'REGISTRO_DUPLICADO_EMAIL'
+                        ? 'email_ja_cadastrado'
+                        : 'cpf_ja_cadastrado',
+                },
+            });
+            throw new common_1.ConflictException('Dados já cadastrados no sistema. Verifique as informações fornecidas.');
         }
-        const senhaHash = await bcrypt.hash(dados.senha, this.BCRYPT_SALT_ROUNDS);
-        const usuario = await this.prisma.usuario.create({
+        const senhaHash = await bcrypt.hash(dados.senha, 10);
+        const novoUsuario = await this.prisma.usuario.create({
             data: {
                 nome: dados.nome,
                 email: dados.email,
-                cpf: cpfLimpo,
                 senhaHash,
-                opticaId: dados.opticaId,
+                cpf: cpfLimpo,
                 papel: 'VENDEDOR',
                 status: 'PENDENTE',
+                opticaId: dados.opticaId,
+            },
+            select: {
+                id: true,
+                nome: true,
+                email: true,
+                papel: true,
+                status: true,
             },
         });
-        this.logger.log(`✅ Vendedor registrado com sucesso: ${usuario.nome} (ID: ${usuario.id}) - Status: PENDENTE`);
+        await this._registrarlogAutenticacao({
+            tipo: 'REGISTRO_SUCESSO',
+            email: dados.email,
+            cpf: cpfLimpo,
+            usuarioId: novoUsuario.id,
+            req,
+            detalhes: {
+                papel: novoUsuario.papel,
+                status: novoUsuario.status,
+            },
+        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[AUTENTICACAO] Novo vendedor registrado:', {
+                id: novoUsuario.id,
+                email: novoUsuario.email,
+                status: novoUsuario.status,
+            });
+        }
         return {
-            message: 'Cadastro enviado com sucesso! Sua conta será ativada após aprovação do administrador.',
+            mensagem: 'Cadastro realizado com sucesso! Aguarde a aprovação do administrador para fazer login.',
+            usuario: {
+                id: novoUsuario.id,
+                nome: novoUsuario.nome,
+                email: novoUsuario.email,
+            },
         };
     }
-    async login(dados) {
-        this.logger.log(`Tentativa de login: ${dados.email}`);
+    async login(dados, req) {
+        const { email, senha } = dados;
         const usuario = await this.prisma.usuario.findUnique({
-            where: { email: dados.email },
+            where: { email },
+            include: {
+                optica: {
+                    select: {
+                        id: true,
+                        nome: true,
+                    },
+                },
+            },
         });
-        if (!usuario) {
-            this.logger.warn(`Tentativa de login com email inexistente: ${dados.email}`);
-            throw new common_1.UnauthorizedException('Credenciais inválidas');
-        }
-        const senhaValida = await bcrypt.compare(dados.senha, usuario.senhaHash);
-        if (!senhaValida) {
-            this.logger.warn(`Tentativa de login com senha incorreta: ${dados.email}`);
-            throw new common_1.UnauthorizedException('Credenciais inválidas');
-        }
-        if (usuario.status === 'PENDENTE') {
-            this.logger.warn(`Tentativa de login com conta pendente: ${dados.email} (ID: ${usuario.id})`);
-            throw new common_1.UnauthorizedException('Sua conta está aguardando aprovação do administrador. Você receberá um email quando sua conta for ativada.');
-        }
-        if (usuario.status === 'BLOQUEADO') {
-            this.logger.warn(`Tentativa de login com conta bloqueada: ${dados.email} (ID: ${usuario.id})`);
-            throw new common_1.UnauthorizedException('Sua conta foi bloqueada. Entre em contato com o administrador para mais informações.');
+        const senhaHash = usuario?.senhaHash || (await bcrypt.hash('senha-fake-para-timing', 10));
+        const senhaValida = await bcrypt.compare(senha, senhaHash);
+        if (!usuario || !senhaValida) {
+            await this._registrarlogAutenticacao({
+                tipo: 'LOGIN_FALHA_CREDENCIAIS',
+                email,
+                cpf: null,
+                usuarioId: usuario?.id || null,
+                req,
+                detalhes: {
+                    motivo: !usuario ? 'email_nao_encontrado' : 'senha_incorreta',
+                },
+            });
+            throw new common_1.UnauthorizedException('Credenciais inválidas.');
         }
         if (usuario.status !== 'ATIVO') {
-            this.logger.error(`Status desconhecido durante login: ${usuario.status} (User: ${dados.email})`);
-            throw new common_1.UnauthorizedException('Status de conta inválido');
+            await this._registrarlogAutenticacao({
+                tipo: 'LOGIN_FALHA_STATUS',
+                email,
+                cpf: usuario.cpf,
+                usuarioId: usuario.id,
+                req,
+                detalhes: {
+                    motivo: 'status_nao_ativo',
+                    statusAtual: usuario.status,
+                },
+            });
+            const mensagemStatus = usuario.status === 'PENDENTE'
+                ? 'Sua conta ainda não foi aprovada pelo administrador.'
+                : 'Sua conta foi bloqueada. Entre em contato com o administrador.';
+            throw new common_1.UnauthorizedException(mensagemStatus);
         }
-        this.logger.log(`✅ Login bem-sucedido: ${usuario.nome} (${usuario.email}) - Papel: ${usuario.papel}`);
-        return this.gerarToken({
-            id: usuario.id,
+        const payload = {
+            sub: usuario.id,
             email: usuario.email,
             papel: usuario.papel,
-            nome: usuario.nome,
+        };
+        const token = this.jwtService.sign(payload);
+        await this._registrarlogAutenticacao({
+            tipo: 'LOGIN_SUCESSO',
+            email,
+            cpf: usuario.cpf,
+            usuarioId: usuario.id,
+            req,
+            detalhes: {
+                papel: usuario.papel,
+            },
         });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[AUTENTICACAO] Login bem-sucedido:', {
+                id: usuario.id,
+                email: usuario.email,
+                papel: usuario.papel,
+            });
+        }
+        return {
+            token,
+            usuario: {
+                id: usuario.id,
+                nome: usuario.nome,
+                email: usuario.email,
+                papel: usuario.papel,
+                optica: usuario.optica,
+            },
+        };
     }
-    async resetarSenha(dados) {
-        this.logger.log('Processando reset de senha');
-        const tokenHash = crypto
-            .createHash('sha256')
-            .update(dados.token)
-            .digest('hex');
-        const usuario = await this.prisma.usuario.findUnique({
-            where: { tokenResetarSenha: tokenHash },
+    async resetarSenha(dados, req) {
+        const { token, novaSenha } = dados;
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const usuario = await this.prisma.usuario.findFirst({
+            where: {
+                tokenResetarSenha: tokenHash,
+                tokenResetarSenhaExpira: {
+                    gt: new Date(),
+                },
+            },
+            select: {
+                id: true,
+                email: true,
+                cpf: true,
+            },
         });
         if (!usuario) {
-            this.logger.warn('Tentativa de reset com token inválido');
-            throw new common_1.BadRequestException('Token de reset inválido ou já utilizado');
+            await this._registrarlogAutenticacao({
+                tipo: 'RESET_TOKEN_INVALIDO',
+                email: null,
+                cpf: null,
+                usuarioId: null,
+                req,
+                detalhes: {
+                    motivo: 'token_invalido_ou_expirado',
+                    tokenHash: tokenHash.substring(0, 10) + '...',
+                },
+            });
+            throw new common_1.NotFoundException('Token de reset inválido ou expirado. Solicite um novo token.');
         }
-        if (usuario.tokenResetarSenhaExpira < new Date()) {
-            this.logger.warn(`Tentativa de reset com token expirado: ${usuario.email}`);
-            throw new common_1.BadRequestException('Token de reset expirado. Solicite um novo token ao administrador.');
-        }
-        const senhaHash = await bcrypt.hash(dados.novaSenha, this.BCRYPT_SALT_ROUNDS);
+        const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
         await this.prisma.usuario.update({
             where: { id: usuario.id },
             data: {
-                senhaHash,
+                senhaHash: novaSenhaHash,
                 tokenResetarSenha: null,
                 tokenResetarSenhaExpira: null,
             },
         });
-        this.logger.log(`✅ Senha resetada com sucesso: ${usuario.nome} (${usuario.email})`);
+        await this._registrarlogAutenticacao({
+            tipo: 'RESET_TOKEN_SUCESSO',
+            email: usuario.email,
+            cpf: usuario.cpf,
+            usuarioId: usuario.id,
+            req,
+            detalhes: {
+                motivo: 'senha_resetada_com_sucesso',
+            },
+        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[AUTENTICACAO] Senha resetada com sucesso:', {
+                id: usuario.id,
+                email: usuario.email,
+            });
+        }
         return {
-            message: 'Senha alterada com sucesso! Você já pode fazer login com sua nova senha.',
+            mensagem: 'Senha resetada com sucesso! Você já pode fazer login com a nova senha.',
         };
+    }
+    gerarToken(payload) {
+        return this.jwtService.sign({
+            sub: payload.id,
+            email: payload.email,
+            papel: payload.papel,
+        });
+    }
+    _limparCpf(cpf) {
+        const cpfLimpo = cpf.replace(/\D/g, '');
+        if (cpfLimpo.length !== 11) {
+            throw new common_1.BadRequestException('CPF inválido. Deve conter exatamente 11 dígitos.');
+        }
+        return cpfLimpo;
+    }
+    async _registrarlogAutenticacao(dados) {
+        try {
+            const ipAddress = dados.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
+                dados.req?.headers?.['x-real-ip'] ||
+                dados.req?.ip ||
+                dados.req?.connection?.remoteAddress ||
+                'unknown';
+            const userAgent = dados.req?.headers?.['user-agent'] || null;
+            await this.prisma.logAutenticacao.create({
+                data: {
+                    tipo: dados.tipo,
+                    email: dados.email,
+                    cpf: dados.cpf || null,
+                    usuarioId: dados.usuarioId,
+                    ipAddress,
+                    userAgent,
+                    detalhes: dados.detalhes || null,
+                },
+            });
+            if (process.env.NODE_ENV !== 'production' &&
+                dados.tipo.includes('FALHA')) {
+                console.log('[AUTENTICACAO] Log de auditoria registrado:', {
+                    tipo: dados.tipo,
+                    email: dados.email,
+                    ipAddress,
+                });
+            }
+        }
+        catch (erro) {
+            console.error('[AUTENTICACAO] Erro ao registrar log de auditoria:', erro);
+        }
     }
 };
 exports.AutenticacaoService = AutenticacaoService;
-exports.AutenticacaoService = AutenticacaoService = AutenticacaoService_1 = __decorate([
+exports.AutenticacaoService = AutenticacaoService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         jwt_1.JwtService,
-        config_1.ConfigService])
+        usuario_service_1.UsuarioService])
 ], AutenticacaoService);
 //# sourceMappingURL=autenticacao.service.js.map

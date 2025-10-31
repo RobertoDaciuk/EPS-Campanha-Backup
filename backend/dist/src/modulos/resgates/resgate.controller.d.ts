@@ -7,14 +7,14 @@ export declare class ResgateController {
     constructor(resgateService: ResgateService);
     solicitar(dto: SolicitarResgateDto, req: any): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.StatusResgate;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusResgate;
         vendedorId: string;
         premioId: string;
-        motivoCancelamento: string | null;
         dataSolicitacao: Date;
         dataAtualizacao: Date;
+        motivoCancelamento: string | null;
     }>;
     meusResgates(req: any): Promise<({
         premio: {
@@ -24,14 +24,14 @@ export declare class ResgateController {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusResgate;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusResgate;
         vendedorId: string;
         premioId: string;
-        motivoCancelamento: string | null;
         dataSolicitacao: Date;
         dataAtualizacao: Date;
+        motivoCancelamento: string | null;
     })[]>;
     listarAdmin(filtros: ListarResgatesFiltroDto): Promise<({
         premio: {
@@ -40,40 +40,40 @@ export declare class ResgateController {
         };
         vendedor: {
             id: string;
-            nome: string;
             email: string;
+            nome: string;
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusResgate;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusResgate;
         vendedorId: string;
         premioId: string;
-        motivoCancelamento: string | null;
         dataSolicitacao: Date;
         dataAtualizacao: Date;
+        motivoCancelamento: string | null;
     })[]>;
     marcarEnviado(id: string): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.StatusResgate;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusResgate;
         vendedorId: string;
         premioId: string;
-        motivoCancelamento: string | null;
         dataSolicitacao: Date;
         dataAtualizacao: Date;
+        motivoCancelamento: string | null;
     }>;
     cancelarEstorno(id: string, dto: CancelarResgateDto): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.StatusResgate;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusResgate;
         vendedorId: string;
         premioId: string;
-        motivoCancelamento: string | null;
         dataSolicitacao: Date;
         dataAtualizacao: Date;
+        motivoCancelamento: string | null;
     }>;
 }

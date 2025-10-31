@@ -1,12 +1,19 @@
-// Caminho: backend/prisma/seed.ts
+// ============================================================================
+// PRISMA SEED - Dados de Teste para EPS Campanhas (REFATORADO)
+// ============================================================================
+// Descrição: Popula o banco com dados de teste para desenvolvimento
+// Execução: npx prisma db seed
+// Compatível com schema.prisma versão 5.0 (Sprint 17 + Sprint 18.2)
+// ============================================================================
+
 import {
   PrismaClient,
   PapelUsuario,
   StatusUsuario,
+  NivelVendedor,
   TipoUnidade,
   CampoVerificacao,
   OperadorCondicao,
-  NivelVendedor, // Certifique-se que NivelVendedor está importado
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -23,6 +30,7 @@ async function main() {
 
   // --- Limpeza Opcional ---
   console.log('🧹 Limpando dados antigos (se existirem)...');
+  
   // Ordem reversa para evitar erros de constraint FK
   await prisma.cartelaConcluida.deleteMany({});
   await prisma.notificacao.deleteMany({});
@@ -33,12 +41,13 @@ async function main() {
   await prisma.condicaoRequisito.deleteMany({});
   await prisma.requisitoCartela.deleteMany({});
   await prisma.regraCartela.deleteMany({});
-  // REMOVIDA A LINHA PROBLEMÁTICA: await prisma.campanha.updateMany({ data: { oticasAlvo: { set: [] } } });
   await prisma.campanha.deleteMany({});
-  await prisma.usuario.deleteMany({}); // Delete usuários antes de Óticas
-  await prisma.optica.deleteMany({}); // Delete Óticas
+  await prisma.usuario.deleteMany({});
+  await prisma.optica.deleteMany({}); // ✅ Nome correto do modelo
   await prisma.configuracaoGlobal.deleteMany({});
-  console.log('🗑️ Dados antigos limpos.');
+  await prisma.logAutenticacao.deleteMany({}); // ✅ NOVO: Limpar logs de auditoria
+  
+  console.log('🗑️  Dados antigos limpos.');
 
   // --- Criação dos Dados ---
 
@@ -48,6 +57,7 @@ async function main() {
 
   // 2. Óticas (Matriz e Filiais)
   console.log('🏢 Criando Óticas (Matriz e Filiais)...');
+  
   const opticaMatriz = await prisma.optica.create({
     data: {
       cnpj: '11111111000111',
@@ -56,6 +66,7 @@ async function main() {
       ativa: true,
     },
   });
+
   const opticaFilialA = await prisma.optica.create({
     data: {
       cnpj: '22222222000122',
@@ -64,6 +75,7 @@ async function main() {
       matrizId: opticaMatriz.id,
     },
   });
+
   const opticaFilialB = await prisma.optica.create({
     data: {
       cnpj: '33333333000133',
@@ -72,6 +84,7 @@ async function main() {
       matrizId: opticaMatriz.id,
     },
   });
+
   const opticaIsolada = await prisma.optica.create({
     data: {
       cnpj: '44444444000144',
@@ -79,19 +92,23 @@ async function main() {
       ativa: true,
     },
   });
+
   console.log(
     `✨ Óticas criadas: Matriz(${opticaMatriz.id}), FilialA(${opticaFilialA.id}), FilialB(${opticaFilialB.id}), Isolada(${opticaIsolada.id})`,
   );
 
   // 3. Usuários (1 Admin, 3 Gerentes, 16 Vendedores)
   console.log(`👤 Criando ${1 + 3 + NUM_VENDEDORES} Usuários...`);
+
   const admin = await prisma.usuario.create({
     data: {
       nome: 'Admin Supremo EPS',
       email: 'admin@eps.com.br',
+      cpf: '00000000000',
       senhaHash: senhaHash,
       papel: PapelUsuario.ADMIN,
       status: StatusUsuario.ATIVO,
+      opticaId: opticaMatriz.id,
     },
   });
 
@@ -99,6 +116,7 @@ async function main() {
     data: {
       nome: 'Gerente Matriz',
       email: 'gerente.matriz@eps.com.br',
+      cpf: '11111111111',
       senhaHash: senhaHash,
       papel: PapelUsuario.GERENTE,
       status: StatusUsuario.ATIVO,
@@ -110,6 +128,7 @@ async function main() {
     data: {
       nome: 'Gerente Filial Alfa',
       email: 'gerente.alfa@eps.com.br',
+      cpf: '22222222222',
       senhaHash: senhaHash,
       papel: PapelUsuario.GERENTE,
       status: StatusUsuario.ATIVO,
@@ -121,6 +140,7 @@ async function main() {
     data: {
       nome: 'Gerente Filial Beta',
       email: 'gerente.beta@eps.com.br',
+      cpf: '33333333333',
       senhaHash: senhaHash,
       papel: PapelUsuario.GERENTE,
       status: StatusUsuario.ATIVO,
@@ -138,9 +158,9 @@ async function main() {
     const oticaIndex = i % oticas.length;
     const nome = `Vendedor ${String(i).padStart(2, '0')}`;
     const email = `vendedor${String(i).padStart(2, '0')}@eps.com.br`;
+    const cpf = `${String(44444444400 + i).substring(0, 11)}`; // ✅ CPF único sequencial
 
-    const rankingMoedinhas = Math.floor(Math.random() * 5000) + 500;
-    // CORREÇÃO: Declarar tipo explicitamente
+    const rankingMoedinhas = Math.floor(Math.random() * 15000) + 500;
     let nivel: NivelVendedor = NivelVendedor.BRONZE;
     if (rankingMoedinhas >= 10000) nivel = NivelVendedor.DIAMANTE;
     else if (rankingMoedinhas >= 5000) nivel = NivelVendedor.OURO;
@@ -150,6 +170,7 @@ async function main() {
       data: {
         nome: nome,
         email: email,
+        cpf: cpf,
         senhaHash: senhaHash,
         papel: PapelUsuario.VENDEDOR,
         status: StatusUsuario.ATIVO,
@@ -157,28 +178,27 @@ async function main() {
         gerenteId: gerentes[gerenteIndex].id,
         saldoMoedinhas: Math.floor(Math.random() * 1000),
         rankingMoedinhas: rankingMoedinhas,
-        nivel: nivel, // Atribuição correta
+        nivel: nivel,
       },
     });
     vendedores.push(vendedor);
   }
+
   console.log(`✨ Usuários criados: 1 Admin, 3 Gerentes, ${NUM_VENDEDORES} Vendedores.`);
 
   // 4. Campanhas de Teste
   console.log('🎯 Criando Campanhas de Teste...');
 
-  // CORREÇÃO: Definir hoje e fimDoAno DENTRO da função main
   const hoje = new Date();
   const fimDoAno = new Date(hoje.getFullYear(), 11, 31); // 31 de Dezembro
 
-
-  // Campanha 1: Específica para Matriz e Filial A
+  // Campanha 1: Específica para Matriz e Filial A (COM CARTELAS)
   const campanhaTarget = await prisma.campanha.create({
     data: {
-      titulo: 'Campanha Foco Matriz+Alfa (Seed)',
+      titulo: 'Campanha Foco Matriz+Alfa (Seed)', // ✅ Campo correto: titulo
       descricao: 'Campanha direcionada apenas para a Matriz e Filial Alfa.',
-      dataInicio: hoje, // Usa a variável definida aqui
-      dataFim: fimDoAno, // Usa a variável definida aqui
+      dataInicio: hoje,
+      dataFim: fimDoAno,
       pontosReaisPorCartela: 75.0,
       moedinhasPorCartela: 150,
       percentualGerente: 0.05,
@@ -191,7 +211,7 @@ async function main() {
         create: [
           {
             numeroCartela: 1,
-            descricao: 'Meta Principal',
+            descricao: 'Cartela Bronze - Meta Inicial',
             requisitos: {
               create: [
                 {
@@ -201,8 +221,16 @@ async function main() {
                   ordem: 1,
                   condicoes: {
                     create: [
-                      { campo: CampoVerificacao.NOME_PRODUTO, operador: OperadorCondicao.CONTEM, valor: 'Kit Premium' },
-                      { campo: CampoVerificacao.VALOR_VENDA, operador: OperadorCondicao.MAIOR_QUE, valor: '200' },
+                      {
+                        campo: CampoVerificacao.NOME_PRODUTO,
+                        operador: OperadorCondicao.CONTEM,
+                        valor: 'Kit Premium',
+                      },
+                      {
+                        campo: CampoVerificacao.VALOR_VENDA,
+                        operador: OperadorCondicao.MAIOR_QUE,
+                        valor: '200',
+                      },
                     ],
                   },
                 },
@@ -213,15 +241,16 @@ async function main() {
       },
     },
   });
+
   console.log(`✨ Campanha Direcionada criada: ${campanhaTarget.titulo}`);
 
-  // Campanha 2: Para Todas as Óticas (Spillover)
+  // Campanha 2: Para Todas as Óticas (COM 2 CARTELAS PARA SPILLOVER)
   const campanhaGlobal = await prisma.campanha.create({
     data: {
       titulo: 'Campanha Global Spillover (Seed)',
       descricao: 'Campanha para todas as óticas, com 2 cartelas para testar spillover.',
-      dataInicio: hoje, // Usa a variável definida aqui
-      dataFim: fimDoAno, // Usa a variável definida aqui
+      dataInicio: hoje,
+      dataFim: fimDoAno,
       pontosReaisPorCartela: 30.0,
       moedinhasPorCartela: 60,
       percentualGerente: 0.10,
@@ -232,6 +261,7 @@ async function main() {
           // Cartela 1
           {
             numeroCartela: 1,
+            descricao: 'Cartela Bronze - Lentes Simples',
             requisitos: {
               create: [
                 {
@@ -239,22 +269,39 @@ async function main() {
                   quantidade: 2,
                   tipoUnidade: TipoUnidade.UNIDADE,
                   ordem: 1,
-                  condicoes: { create: [{ campo: CampoVerificacao.NOME_PRODUTO, operador: OperadorCondicao.CONTEM, valor: 'Lente Simples' }] },
+                  condicoes: {
+                    create: [
+                      {
+                        campo: CampoVerificacao.NOME_PRODUTO,
+                        operador: OperadorCondicao.CONTEM,
+                        valor: 'Lente Simples',
+                      },
+                    ],
+                  },
                 },
               ],
             },
           },
-          // Cartela 2
+          // Cartela 2 (para testar spillover)
           {
             numeroCartela: 2,
+            descricao: 'Cartela Prata - Lentes Simples Avançadas',
             requisitos: {
               create: [
                 {
                   descricao: 'Lente Simples (Seed)',
                   quantidade: 2,
                   tipoUnidade: TipoUnidade.UNIDADE,
-                  ordem: 1,
-                  condicoes: { create: [{ campo: CampoVerificacao.NOME_PRODUTO, operador: OperadorCondicao.CONTEM, valor: 'Lente Simples' }] },
+                  ordem: 1, // ✅ Mesma ordem = requisito relacionado (spillover)
+                  condicoes: {
+                    create: [
+                      {
+                        campo: CampoVerificacao.NOME_PRODUTO,
+                        operador: OperadorCondicao.CONTEM,
+                        valor: 'Lente Simples',
+                      },
+                    ],
+                  },
                 },
               ],
             },
@@ -263,16 +310,18 @@ async function main() {
       },
     },
   });
+
   console.log(`✨ Campanha Global criada: ${campanhaGlobal.titulo}`);
 
   // 5. Prêmios
   console.log('🎁 Criando Prêmios de Teste...');
+  
   await prisma.premio.createMany({
     data: [
       {
         nome: 'Caneca Exclusiva EPS (Seed)',
         descricao: 'Caneca para teste de resgate.',
-        custoMoedinhas: 100,
+        custoMoedinhas: 100, // ✅ Campo correto: custoMoedinhas (não pontosNecessarios)
         estoque: 20,
         ativo: true,
       },
@@ -293,24 +342,45 @@ async function main() {
     ],
     skipDuplicates: true,
   });
+
   console.log('✨ Prêmios criados.');
 
   // 6. Configurações Globais
-  console.log('⚙️ Criando Configurações Globais de Teste...');
+  console.log('⚙️  Criando Configurações Globais de Teste...');
+  
   await prisma.configuracaoGlobal.createMany({
     data: [
-      { chave: 'PONTOS_NIVEL_PRATA', valor: '1000', descricao: 'Moedinhas para atingir Prata (Seed)' },
-      { chave: 'PONTOS_NIVEL_OURO', valor: '5000', descricao: 'Moedinhas para atingir Ouro (Seed)' },
-      { chave: 'PONTOS_NIVEL_DIAMANTE', valor: '10000', descricao: 'Moedinhas para atingir Diamante (Seed)' },
-      { chave: 'PERCENTUAL_MAX_GERENTE', valor: '0.15', descricao: 'Comissão máxima do gerente (15%) (Seed)' },
+      {
+        chave: 'PONTOS_NIVEL_PRATA',
+        valor: '1000',
+        descricao: 'Moedinhas para atingir Prata (Seed)',
+      },
+      {
+        chave: 'PONTOS_NIVEL_OURO',
+        valor: '5000',
+        descricao: 'Moedinhas para atingir Ouro (Seed)',
+      },
+      {
+        chave: 'PONTOS_NIVEL_DIAMANTE',
+        valor: '10000',
+        descricao: 'Moedinhas para atingir Diamante (Seed)',
+      },
+      {
+        chave: 'PERCENTUAL_MAX_GERENTE',
+        valor: '0.15',
+        descricao: 'Comissão máxima do gerente (15%) (Seed)',
+      },
     ],
     skipDuplicates: true,
   });
+
   console.log('✨ Configurações criadas.');
-
   console.log(`\n✅ Seeding concluído com sucesso!`);
-
-} // Fim da função main
+  console.log(`\n📋 CREDENCIAIS DE TESTE:`);
+  console.log(`   Admin: admin@eps.com.br / ${SENHA_PADRAO}`);
+  console.log(`   Gerente Matriz: gerente.matriz@eps.com.br / ${SENHA_PADRAO}`);
+  console.log(`   Vendedor 01: vendedor01@eps.com.br / ${SENHA_PADRAO}`);
+}
 
 main()
   .catch((e) => {

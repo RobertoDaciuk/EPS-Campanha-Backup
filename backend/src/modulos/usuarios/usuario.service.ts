@@ -28,6 +28,8 @@
 
 import {
   Injectable,
+  Inject,
+  forwardRef,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -72,6 +74,7 @@ export class UsuarioService {
    */
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => AutenticacaoService))
     private readonly autenticacaoService: AutenticacaoService,
   ) {}
 
@@ -549,6 +552,7 @@ export class UsuarioService {
       id: usuarioAlvo.id,
       email: usuarioAlvo.email,
       papel: usuarioAlvo.papel,
+      
     });
     this.logger.log(
       `✅ Token de impersonação gerado: Admin personificando ${usuarioAlvo.nome} (${usuarioAlvo.email})`,

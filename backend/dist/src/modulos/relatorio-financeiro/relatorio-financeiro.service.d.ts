@@ -7,8 +7,8 @@ export declare class RelatorioFinanceiroService {
     listar(filtros: ListarRelatoriosFiltroDto): Promise<({
         usuario: {
             id: string;
-            nome: string;
             email: string;
+            nome: string;
         };
         campanha: {
             id: string;
@@ -16,9 +16,9 @@ export declare class RelatorioFinanceiroService {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;
@@ -30,8 +30,8 @@ export declare class RelatorioFinanceiroService {
     buscarPorId(id: string): Promise<{
         usuario: {
             id: string;
-            nome: string;
             email: string;
+            nome: string;
         };
         campanha: {
             id: string;
@@ -39,9 +39,9 @@ export declare class RelatorioFinanceiroService {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;
@@ -52,9 +52,9 @@ export declare class RelatorioFinanceiroService {
     }>;
     marcarComoPago(id: string): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
         campanhaId: string;
         valor: Prisma.Decimal;
         tipo: string;

@@ -1,39 +1,59 @@
 "use client";
 
+/**
+ * ============================================================================
+ * AUTH PROVIDER - Provedor de Contexto de Autenticação (REFATORADO)
+ * ============================================================================
+ *
+ * REFATORAÇÃO (Sprint 18.3 - Correção de Login):
+ * - SIMPLIFICADO: Método login() agora apenas armazena dados localmente
+ * - CORRIGIDO: Não busca usuário novamente após login (dados já vêm da API)
+ * - MELHORADO: Validação inicial usa localStorage em vez de API
+ * - RESULTADO: Login rápido e sem erros de "nome undefined"
+ *
+ * Descrição:
+ * Provedor de autenticação que gerencia todo o estado de autenticação
+ * da aplicação, incluindo token JWT, dados do usuário, persistência
+ * no localStorage e redirecionamentos.
+ *
+ * Responsabilidades:
+ * - Armazenar token JWT e dados do usuário
+ * - Persistir token e usuário no localStorage
+ * - Validar token automaticamente ao carregar aplicação
+ * - Injetar token no header Authorization via Axios
+ * - Redirecionar para login se não autenticado
+ * - Redirecionar para dashboard após login
+ * - Fornecer funções login() e logout() para componentes
+ *
+ * @module AuthProvider
+ * ============================================================================
+ */
+
 import { ReactNode, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AuthContext, Usuario } from "./AuthContext";
 import api from "@/lib/axios";
-import toast from "react-hot-toast";
 
 /**
- * Props do AuthProvider
+ * Props do AuthProvider.
  */
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 /**
- * Chave para armazenar o token no localStorage
+ * Chaves para armazenar dados no localStorage.
  */
 const TOKEN_KEY = "@EPSCampanhas:token";
+const USUARIO_KEY = "@EPSCampanhas:usuario";
 
 /**
- * Rotas públicas que não requerem autenticação
+ * Rotas públicas que não requerem autenticação.
  */
 const PUBLIC_ROUTES = ["/login", "/registro", "/recuperar-senha"];
 
 /**
- * Provedor de Autenticação
- * 
- * Gerencia todo o estado de autenticação da aplicação:
- * - Token JWT
- * - Dados do usuário
- * - Persistência no localStorage
- * - Headers do Axios
- * - Redirecionamentos
- * - Validação automática do token
- * - Estado de carregamento inicial
+ * Provedor de Autenticação.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
@@ -45,201 +65,159 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const [token, setToken] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Inicia como true
+  const [carregando, setCarregando] = useState(true);
 
   // ========================================
-  // FUNÇÃO: BUSCAR DADOS DO USUÁRIO
-  // ========================================
-
-  /**
-   * Busca os dados do usuário autenticado na API
-   * 
-   * @param authToken - Token JWT para autenticação
-   */
-  const fetchUsuario = useCallback(async (authToken: string) => {
-    try {
-      // Configura o header temporariamente para esta requisição
-      const response = await api.get("/perfil/meu", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-
-      setUsuario(response.data);
-      return true;
-    } catch (error) {
-      console.error("Erro ao buscar dados do usuário:", error);
-      return false;
-    }
-  }, []);
-
-  // ========================================
-  // FUNÇÃO: LOGIN
+  // FUNÇÕES DE AUTENTICAÇÃO
   // ========================================
 
   /**
-   * Realiza o login do usuário
+   * Função de login.
    * 
-   * 1. Salva token no localStorage
-   * 2. Atualiza estado do token
-   * 3. Configura header do Axios
-   * 4. Busca dados do usuário
-   * 5. Redireciona para dashboard
+   * SIMPLIFICADO: Apenas armazena dados localmente e redireciona.
+   * Não faz requisição à API (dados já foram validados no page.tsx).
+   * 
+   * @param novoToken - Token JWT retornado pelo backend
+   * @param dadosUsuario - Dados do usuário retornados pelo backend
    */
   const login = useCallback(
-    async (newToken: string) => {
-      try {
-        // Salva no localStorage para persistência
-        localStorage.setItem(TOKEN_KEY, newToken);
+    (novoToken: string, dadosUsuario: Usuario) => {
+      // Armazenar no localStorage
+      localStorage.setItem(TOKEN_KEY, novoToken);
+      localStorage.setItem(USUARIO_KEY, JSON.stringify(dadosUsuario));
 
-        // Atualiza estado
-        setToken(newToken);
+      // Atualizar estados
+      setToken(novoToken);
+      setUsuario(dadosUsuario);
 
-        // Configura header padrão do Axios
-        api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+      // Injetar token no header do Axios
+      api.defaults.headers.common["Authorization"] = `Bearer ${novoToken}`;
 
-        // Busca dados do usuário
-        const success = await fetchUsuario(newToken);
-
-        if (success) {
-          // Redireciona para dashboard
-          router.push("/");
-        } else {
-          throw new Error("Falha ao buscar dados do usuário");
-        }
-      } catch (error) {
-        console.error("Erro no login:", error);
-        
-        // Remove token inválido
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
-        setUsuario(null);
-        delete api.defaults.headers.common["Authorization"];
-
-        throw error;
-      }
+      // Redirecionar para dashboard
+      router.push("/dashboard");
     },
-    [router, fetchUsuario]
+    [router]
   );
 
-  // ========================================
-  // FUNÇÃO: LOGOUT
-  // ========================================
-
   /**
-   * Realiza o logout do usuário
-   * 
-   * 1. Remove token do localStorage
-   * 2. Limpa estados
-   * 3. Remove header do Axios
-   * 4. Redireciona para login
+   * Função de logout.
    */
   const logout = useCallback(() => {
-    // Remove do localStorage
+    // Remover do localStorage
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USUARIO_KEY);
 
-    // Limpa estados
+    // Limpar estados
     setToken(null);
     setUsuario(null);
 
-    // Remove header do Axios
+    // Remover token do header do Axios
     delete api.defaults.headers.common["Authorization"];
 
-    // Redireciona para login
+    // Redirecionar para login
     router.push("/login");
-
-    // Feedback visual
-    toast.success("Logout realizado com sucesso!");
   }, [router]);
 
   // ========================================
-  // EFEITO: CARREGAR TOKEN NA INICIALIZAÇÃO
+  // CARREGAMENTO INICIAL
   // ========================================
 
+  /**
+   * Carrega autenticação do localStorage ao montar.
+   * 
+   * SIMPLIFICADO: Não faz requisição à API na inicialização.
+   * Confia nos dados armazenados localmente.
+   */
   useEffect(() => {
-    /**
-     * Verifica se existe token salvo no localStorage
-     * e valida se ainda é válido
-     * 
-     * IMPORTANTE: Este useEffect gerencia o isLoading
-     */
-    const loadToken = async () => {
+    const carregarAuth = () => {
       try {
-        // Busca token do localStorage
-        const storedToken = localStorage.getItem(TOKEN_KEY);
+        const tokenArmazenado = localStorage.getItem(TOKEN_KEY);
+        const usuarioArmazenado = localStorage.getItem(USUARIO_KEY);
 
-        if (!storedToken) {
-          // Sem token - finaliza carregamento
-          setIsLoading(false);
-          return;
+        if (tokenArmazenado && usuarioArmazenado) {
+          const dadosUsuario = JSON.parse(usuarioArmazenado);
+
+          // Atualizar estados
+          setToken(tokenArmazenado);
+          setUsuario(dadosUsuario);
+
+          // Injetar token no header do Axios
+          api.defaults.headers.common["Authorization"] = `Bearer ${tokenArmazenado}`;
         }
-
-        // Configura header do Axios
-        api.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
-
-        // Tenta buscar dados do usuário para validar o token
-        const isValid = await fetchUsuario(storedToken);
-
-        if (isValid) {
-          // Token válido - atualiza estado
-          setToken(storedToken);
-        } else {
-          // Token inválido - remove tudo
-          localStorage.removeItem(TOKEN_KEY);
-          delete api.defaults.headers.common["Authorization"];
-        }
-      } catch (error) {
-        console.error("Erro ao carregar token:", error);
+      } catch (erro) {
+        console.error("[AuthProvider] Erro ao carregar autenticação:", erro);
+        
+        // Limpar localStorage em caso de erro
         localStorage.removeItem(TOKEN_KEY);
-        delete api.defaults.headers.common["Authorization"];
+        localStorage.removeItem(USUARIO_KEY);
       } finally {
-        // SEMPRE finaliza o carregamento ao final
-        setIsLoading(false);
+        setCarregando(false);
       }
     };
 
-    loadToken();
-  }, [fetchUsuario]);
+    carregarAuth();
+  }, []);
 
   // ========================================
-  // EFEITO: PROTEÇÃO DE ROTAS
+  // PROTEÇÃO DE ROTAS
   // ========================================
 
+  /**
+   * Redireciona usuário para login se não autenticado.
+   */
   useEffect(() => {
-    // Aguarda carregamento inicial
-    if (isLoading) return;
+    // Se ainda carregando, aguardar
+    if (carregando) {
+      return;
+    }
 
-    const isPublicRoute = PUBLIC_ROUTES.some((route) =>
-      pathname.startsWith(route)
-    );
+    const rotaPublica = PUBLIC_ROUTES.includes(pathname);
 
-    // Se não está autenticado e não está em rota pública
-    if (!token && !isPublicRoute) {
+    // Se não autenticado e rota não é pública, redirecionar para login
+    if (!token && !rotaPublica) {
       router.push("/login");
+      return;
     }
 
-    // Se está autenticado e está em rota de login
+    // Se autenticado e está na rota de login, redirecionar para dashboard
     if (token && pathname === "/login") {
-      router.push("/");
+      router.push("/dashboard");
     }
-  }, [token, pathname, isLoading, router]);
-
-  // ========================================
-  // VALOR DO CONTEXTO
-  // ========================================
-
-  const value = {
-    token,
-    usuario,
-    estaAutenticado: !!token,
-    isLoading, // Exposto no contexto
-    login,
-    logout,
-  };
+  }, [pathname, carregando, token, router]);
 
   // ========================================
   // RENDER
   // ========================================
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  /**
+   * Loading state durante inicialização.
+   */
+  if (carregando) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Fornece contexto de autenticação para toda a aplicação.
+   */
+  return (
+    <AuthContext.Provider
+      value={{
+        token,
+        usuario,
+        estaAutenticado: !!token,
+        carregando,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

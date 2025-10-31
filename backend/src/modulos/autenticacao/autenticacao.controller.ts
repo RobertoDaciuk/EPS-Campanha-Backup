@@ -1,258 +1,282 @@
 /**
  * ============================================================================
- * AUTENTICACAO CONTROLLER - Rotas HTTP de Autenticação
+ * AUTENTICACAO CONTROLLER - Rotas HTTP de Autenticação (REFATORADO)
  * ============================================================================
- * 
+ *
+ * REFATORAÇÃO (Sprint 18.2 - Segurança Avançada):
+ * - NOVO: Decorator @Public() em todas as rotas (após Guards globais)
+ * - NOVO: Rate Limiting específico em /resetar-senha (3 tentativas/min)
+ * - NOVO: Injeção de @Request() para auditoria (IP, User-Agent)
+ * - MELHORADO: Documentação TSDoc sobre segurança
+ *
  * Descrição:
  * Controlador responsável por expor endpoints HTTP para registro e login
  * de usuários. Todas as rotas deste controller são PÚBLICAS (não requerem
- * autenticação).
- * 
+ * autenticação JWT), mas são protegidas por Rate Limiting.
+ *
  * Base URL: /api/autenticacao
- * 
- * Rotas Públicas:
- * - POST /api/autenticacao/registrar
- *   Auto-registro de vendedor (cria usuário com status PENDENTE)
- * 
- * - POST /api/autenticacao/login
- *   Login de qualquer usuário (retorna token JWT se status ATIVO)
- * 
+ *
+ * Rotas Públicas (marcadas com @Public()):
+ * - POST /api/autenticacao/registrar (10 req/min - global)
+ * - POST /api/autenticacao/login (10 req/min - global)
+ * - POST /api/autenticacao/resetar-senha (3 req/min - específico)
+ *
  * Segurança:
  * - Registro: Cria usuário com status PENDENTE (não pode logar até aprovação)
  * - Login: Valida status antes de gerar token (apenas ATIVO pode logar)
  * - Senhas: Sempre criptografadas com bcrypt antes de salvar
  * - Tokens: Assinados com JWT_SECRET, expiram conforme JWT_EXPIRES_IN
- * 
+ * - Rate Limiting: ThrottlerGuard global (10 req/min) + específico em reset (3 req/min)
+ * - Auditoria: Todas as tentativas registradas em LogAutenticacao
+ *
  * @module AutenticacaoModule
  * ============================================================================
  */
 
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
-import { AutenticacaoService, RespostaLogin } from './autenticacao.service';
+import { Controller, Post, Body, HttpCode, HttpStatus, Request } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+
+import { AutenticacaoService } from './autenticacao.service';
 import { RegistrarUsuarioDto } from './dto/registrar-usuario.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetarSenhaDto } from './dto/resetar-senha.dto';
+import { Public } from '../comum/decorators/public.decorator';
 
 /**
- * Controlador de rotas de autenticação.
+ * Controller de autenticação.
  * 
- * Prefixo de rota: /api/autenticacao
+ * Base URL: /autenticacao
+ * 
+ * Todas as rotas são públicas (marcadas com @Public()).
  */
 @Controller('autenticacao')
 export class AutenticacaoController {
   /**
-   * Logger dedicado para rastrear requisições HTTP de autenticação.
-   */
-  private readonly logger = new Logger(AutenticacaoController.name);
-
-  /**
-   * Construtor do controlador.
+   * Construtor do AutenticacaoController.
    * 
-   * @param autenticacaoService - Serviço de lógica de negócio de autenticação
+   * @param autenticacaoService - Serviço de autenticação
    */
   constructor(private readonly autenticacaoService: AutenticacaoService) {}
 
   /**
-   * Rota de auto-registro de vendedor.
+   * POST /autenticacao/registrar
    * 
-   * Permite que um vendedor se cadastre na plataforma sem intervenção
-   * do admin. O usuário é criado com status PENDENTE e só poderá fazer
-   * login após um admin aprovar (alterar status para ATIVO).
+   * Rota pública para auto-registro de vendedores.
    * 
-   * Fluxo Completo (Jornada de João):
-   * 1. Frontend: Vendedor verifica CNPJ da ótica (GET /api/oticas/verificar-cnpj/:cnpj)
-   * 2. Frontend: Exibe formulário de registro com opticaId pré-preenchido
-   * 3. Vendedor: Preenche nome, email, CPF, senha
-   * 4. Frontend: Envia para esta rota (POST /api/autenticacao/registrar)
-   * 5. Backend: Cria usuário com status PENDENTE
-   * 6. Frontend: Exibe mensagem de sucesso e aguarda aprovação
-   * 7. Admin: Aprova cadastro (altera status para ATIVO)
-   * 8. Vendedor: Pode fazer login
+   * NOVO (Vulnerabilidade #2 e #11):
+   * - Decorator @Public() para permitir acesso sem JWT
+   * - Necessário após configuração de Guards globais
    * 
-   * Rota: POST /api/autenticacao/registrar
-   * Acesso: Público (sem autenticação)
+   * NOVO (Vulnerabilidade #9):
+   * - Injeção de @Request() para passar objeto req ao service
+   * - Service extrai IP e User-Agent para auditoria
    * 
-   * @param dados - Dados do vendedor (validados pelo DTO)
-   * @returns Mensagem de sucesso (SEM token)
+   * Fluxo:
+   * 1. Vendedor preenche formulário com seus dados
+   * 2. Frontend valida CNPJ da ótica (rota pública de óticas)
+   * 3. Frontend envia dados + oticaId para esta rota
+   * 4. Backend cria usuário com status PENDENTE e papel VENDEDOR
+   * 5. Admin precisa aprovar (alterar status para ATIVO)
+   * 6. Apenas após aprovação, vendedor pode fazer login
    * 
-   * @throws {BadRequestException} Se CPF inválido
-   * @throws {ConflictException} Se email ou CPF já cadastrado
+   * Segurança:
+   * - Rate Limiting: 10 requisições por minuto (ThrottlerGuard global)
+   * - Validação de DTO: class-validator valida todos os campos
+   * - CPF sanitizado: Remove pontuação antes de salvar
+   * - Senha criptografada: bcrypt com 10 salt rounds
+   * - Status PENDENTE: Vendedor não pode logar até aprovação
+   * - Auditoria: Tentativas registradas em LogAutenticacao
+   * 
+   * @param dados - DTO com dados do novo vendedor
+   * @param req - Objeto Request (para extrair IP e User-Agent)
+   * @returns Mensagem de sucesso
+   * @throws ConflictException - Se email ou CPF já cadastrado
+   * @throws BadRequestException - Se dados inválidos (validação de DTO)
    * 
    * @example
-   * ```
-   * POST /api/autenticacao/registrar
-   * Content-Type: application/json
-   * 
+   * POST /autenticacao/registrar
+   * Body:
    * {
-   *   "nome": "João da Silva",
-   *   "email": "joao@email.com",
+   *   "nome": "João Silva",
+   *   "email": "joao@example.com",
    *   "cpf": "123.456.789-00",
    *   "senha": "Senha@123",
-   *   "opticaId": "550e8400-e29b-41d4-a716-446655440000"
+   *   "oticaId": "uuid-da-otica"
    * }
-   * ```
    * 
-   * Resposta de Sucesso (201):
-   * ```
+   * Response 201:
    * {
-   *   "message": "Cadastro enviado com sucesso! Sua conta será ativada após aprovação do administrador."
-   * }
-   * ```
-   */
-  @Post('registrar')
-  @HttpCode(HttpStatus.CREATED)
-  async registrar(@Body() dados: RegistrarUsuarioDto) {
-    this.logger.log(`[PÚBLICO] Recebendo registro de: ${dados.email}`);
-
-    const resultado = await this.autenticacaoService.registrar(dados);
-
-    return resultado;
-  }
-
-  /**
-   * Rota de login de usuário.
-   * 
-   * Autentica qualquer tipo de usuário (Admin, Gerente, Vendedor) e
-   * retorna um token JWT que deve ser usado em requisições futuras.
-   * 
-   * Validações de Segurança:
-   * - Email deve existir no banco
-   * - Senha deve corresponder ao hash armazenado
-   * - Status deve ser ATIVO (PENDENTE e BLOQUEADO não podem logar)
-   * 
-   * O token retornado deve ser armazenado pelo frontend (localStorage,
-   * sessionStorage, cookie) e enviado no header de requisições futuras:
-   * Authorization: Bearer <token>
-   * 
-   * Rota: POST /api/autenticacao/login
-   * Acesso: Público (sem autenticação)
-   * 
-   * @param dados - Credenciais de login (validadas pelo DTO)
-   * @returns Token JWT e dados básicos do usuário
-   * 
-   * @throws {NotFoundException} Se email não cadastrado
-   * @throws {UnauthorizedException} Se senha inválida, PENDENTE ou BLOQUEADO
-   * 
-   * @example
-   * ```
-   * POST /api/autenticacao/login
-   * Content-Type: application/json
-   * 
-   * {
-   *   "email": "joao@email.com",
-   *   "senha": "Senha@123"
-   * }
-   * ```
-   * 
-   * Resposta de Sucesso (200):
-   * ```
-   * {
-   *   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+   *   "mensagem": "Cadastro realizado com sucesso! Aguarde aprovação...",
    *   "usuario": {
-   *     "id": "550e8400-e29b-41d4-a716-446655440000",
-   *     "nome": "João da Silva",
-   *     "email": "joao@email.com",
-   *     "papel": "VENDEDOR"
+   *     "id": "uuid",
+   *     "nome": "João Silva",
+   *     "email": "joao@example.com"
    *   }
    * }
-   * ```
-   * 
-   * Resposta de Erro - PENDENTE (401):
-   * ```
-   * {
-   *   "statusCode": 401,
-   *   "message": "Sua conta está aguardando aprovação do administrador.",
-   *   "error": "Unauthorized"
-   * }
-   * ```
-   * 
-   * Resposta de Erro - BLOQUEADO (401):
-   * ```
-   * {
-   *   "statusCode": 401,
-   *   "message": "Sua conta foi bloqueada.",
-   *   "error": "Unauthorized"
-   * }
-   * ```
    */
-  /**
-   * Rota de login de usuário.
-   */
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(@Body() dados: LoginDto): Promise<RespostaLogin> {
-    this.logger.log(`[PÚBLICO] Tentativa de login: ${dados.email}`);
-
-    const resultado = await this.autenticacaoService.login(dados);
-
-    return resultado;
+  @Public()
+  @Post('registrar')
+  @HttpCode(HttpStatus.CREATED)
+  async registrar(
+    @Body() dados: RegistrarUsuarioDto,
+    @Request() req: any,
+  ) {
+    return this.autenticacaoService.registrar(dados, req);
   }
 
-    /**
-   * Reseta a senha de um usuário usando token (Público).
+  /**
+   * POST /autenticacao/login
    * 
-   * Rota pública onde o usuário fornece o token recebido do Admin
-   * e define uma nova senha forte.
+   * Rota pública para login de qualquer tipo de usuário.
    * 
-   * Rota: POST /api/autenticacao/resetar-senha
-   * Acesso: Público (sem autenticação)
+   * NOVO (Vulnerabilidade #2 e #11):
+   * - Decorator @Public() para permitir acesso sem JWT
    * 
-   * @param dados - Token e nova senha (validados pelo DTO)
-   * @returns Mensagem de sucesso
+   * NOVO (Vulnerabilidade #5):
+   * - Timing attack mitigado no service (bcrypt.compare sempre executado)
    * 
-   * @throws {BadRequestException} Se token inválido ou expirado
+   * NOVO (Vulnerabilidade #9):
+   * - Injeção de @Request() para auditoria
+   * 
+   * Fluxo:
+   * 1. Usuário envia email e senha
+   * 2. Service busca usuário pelo email
+   * 3. Service compara senha (bcrypt.compare SEMPRE executado)
+   * 4. Service verifica status (deve ser ATIVO)
+   * 5. Service gera token JWT se válido
+   * 6. Service registra log de auditoria
+   * 7. Retorna token e dados do usuário
+   * 
+   * Segurança:
+   * - Rate Limiting: 10 requisições por minuto (ThrottlerGuard global)
+   * - Timing attack: Mitigado (tempo constante de resposta)
+   * - Mensagens genéricas: Previne enumeração de usuários
+   * - Status ATIVO: Apenas usuários aprovados podem logar
+   * - Auditoria: Todas as tentativas registradas (sucesso e falha)
+   * 
+   * @param dados - DTO com email e senha
+   * @param req - Objeto Request (para extrair IP e User-Agent)
+   * @returns Token JWT e dados do usuário
+   * @throws UnauthorizedException - Se credenciais inválidas ou status não ATIVO
    * 
    * @example
-   * ```
-   * POST /api/autenticacao/resetar-senha
-   * Content-Type: application/json
-   * 
+   * POST /autenticacao/login
+   * Body:
    * {
-   *   "token": "a1b2c3d4e5f6789...64caracteres",
-   *   "novaSenha": "NovaSenha@123"
+   *   "email": "joao@example.com",
+   *   "senha": "Senha@123"
    * }
-   * ```
    * 
-   * Resposta de Sucesso (200):
-   * ```
+   * Response 200:
    * {
-   *   "message": "Senha alterada com sucesso! Você já pode fazer login com sua nova senha."
+   *   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+   *   "usuario": {
+   *     "id": "uuid",
+   *     "nome": "João Silva",
+   *     "email": "joao@example.com",
+   *     "papel": "VENDEDOR",
+   *     "otica": {
+   *       "id": "uuid",
+   *       "nome": "Ótica Exemplo"
+   *     }
+   *   }
    * }
-   * ```
    * 
-   * Resposta de Erro - Token Inválido (400):
-   * ```
+   * Response 401 (credenciais inválidas):
    * {
-   *   "statusCode": 400,
-   *   "message": "Token de reset inválido ou já utilizado",
-   *   "error": "Bad Request"
+   *   "statusCode": 401,
+   *   "message": "Credenciais inválidas."
    * }
-   * ```
    * 
-   * Resposta de Erro - Token Expirado (400):
-   * ```
+   * Response 401 (status não ATIVO):
    * {
-   *   "statusCode": 400,
-   *   "message": "Token de reset expirado. Solicite um novo token ao administrador.",
-   *   "error": "Bad Request"
+   *   "statusCode": 401,
+   *   "message": "Sua conta ainda não foi aprovada pelo administrador."
    * }
-   * ```
    */
-  @Post('resetar-senha')
+  @Public()
+  @Post('login')
   @HttpCode(HttpStatus.OK)
-  async resetarSenha(@Body() dados: ResetarSenhaDto) {
-    this.logger.log('[PÚBLICO] Processando reset de senha');
-
-    const resultado = await this.autenticacaoService.resetarSenha(dados);
-
-    return resultado;
+  async login(
+    @Body() dados: LoginDto,
+    @Request() req: any,
+  ) {
+    return this.autenticacaoService.login(dados, req);
   }
 
+  /**
+   * POST /autenticacao/resetar-senha
+   * 
+   * Rota pública para reset de senha usando token temporário.
+   * 
+   * NOVO (Vulnerabilidade #2 e #11):
+   * - Decorator @Public() para permitir acesso sem JWT
+   * 
+   * NOVO (Vulnerabilidade #7):
+   * - Rate Limiting específico: 3 requisições por minuto
+   * - Previne brute force de tokens
+   * - Sobrescreve limite global (10 req/min)
+   * 
+   * NOVO (Vulnerabilidade #9):
+   * - Injeção de @Request() para auditoria
+   * 
+   * Fluxo:
+   * 1. Admin gera token via POST /usuarios/:id/iniciar-reset-senha
+   * 2. Admin entrega token original ao usuário (email, WhatsApp, etc.)
+   * 3. Usuário acessa esta rota pública
+   * 4. Usuário fornece token + nova senha
+   * 5. Backend valida token, expiração e atualiza senha
+   * 6. Backend descarta token (uso único)
+   * 7. Backend registra log de auditoria
+   * 
+   * Segurança:
+   * - Rate Limiting: 3 requisições por minuto (específico)
+   *   - Previne brute force de tokens (tentativas ilimitadas)
+   *   - Mais restritivo que limite global (10 req/min)
+   * - Token hash: Token original NUNCA armazenado (apenas hash SHA-256)
+   * - Uso único: Token descartado após uso bem-sucedido
+   * - Expiração: Token expira em 1 hora (configurável)
+   * - Auditoria: Tentativas inválidas registradas
+   * 
+   * @param dados - DTO com token e nova senha
+   * @param req - Objeto Request (para extrair IP e User-Agent)
+   * @returns Mensagem de sucesso
+   * @throws NotFoundException - Se token inválido ou expirado
+   * @throws BadRequestException - Se nova senha inválida (validação de DTO)
+   * 
+   * @example
+   * POST /autenticacao/resetar-senha
+   * Body:
+   * {
+   *   "token": "abc123def456...",
+   *   "novaSenha": "NovaSenha@123"
+   * }
+   * 
+   * Response 200:
+   * {
+   *   "mensagem": "Senha resetada com sucesso! Você já pode fazer login..."
+   * }
+   * 
+   * Response 404 (token inválido):
+   * {
+   *   "statusCode": 404,
+   *   "message": "Token de reset inválido ou expirado..."
+   * }
+   * 
+   * Response 429 (rate limit excedido):
+   * {
+   *   "statusCode": 429,
+   *   "message": "ThrottlerException: Too Many Requests"
+   * }
+   */
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('resetar-senha')
+  @HttpCode(HttpStatus.OK)
+  async resetarSenha(
+    @Body() dados: ResetarSenhaDto,
+    @Request() req: any,
+  ) {
+    return this.autenticacaoService.resetarSenha(dados, req);
+  }
 }

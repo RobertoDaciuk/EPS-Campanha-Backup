@@ -1,108 +1,152 @@
 /**
  * ============================================================================
- * APP MODULE - Módulo Raiz da Aplicação EPS Campanhas
+ * APP MODULE - Módulo Raiz da Aplicação EPS Campanhas (REFATORADO - Segurança)
  * ============================================================================
- * 
+ *
  * Descrição:
  * Este é o módulo raiz (root module) da aplicação NestJS. Ele orquestra
  * todos os módulos de feature (usuários, campanhas, autenticação, etc.) e
  * configura serviços globais necessários para o funcionamento da aplicação.
- * 
+ *
+ * REFATORAÇÃO (Sprint 18.2 - Segurança Avançada):
+ * - NOVO: ThrottlerModule configurado globalmente (Rate Limiting)
+ * - NOVO: JwtAuthGuard configurado como APP_GUARD (Secure by Default)
+ * - CORRIGIDO Vulnerabilidade #2: Todas as rotas protegidas por padrão
+ * - CORRIGIDO Vulnerabilidade #3: Rate Limiting ativo em todas as rotas
+ * - MELHORADO: Documentação TSDoc sobre configuração de segurança
+ *
  * Responsabilidades:
  * - Carregar variáveis de ambiente do arquivo .env (via ConfigModule)
  * - Importar o PrismaModule para conexão com banco de dados
  * - Importar módulos de features (OticaModule, AutenticacaoModule, etc.)
  * - Configurar middlewares, guards e interceptors globais
  * - Definir providers globais (ex: serviços de email, cache, etc.)
- * 
+ * - Configurar Rate Limiting (Throttler) para prevenir abuso
+ * - Configurar Guards de autenticação globais (Secure by Default)
+ *
+ * Segurança (NOVO):
+ * - Throttler: Limita requisições para prevenir brute force e DoS
+ *   - 10 requisições por minuto por IP (padrão global)
+ *   - Rotas específicas podem sobrescrever com @Throttle()
+ * - JwtAuthGuard: Protege TODAS as rotas por padrão
+ *   - Rotas públicas usam decorator @Public() para bypass
+ *   - Garante que nenhum endpoint fique desprotegido por esquecimento
+ *
  * @module AppModule
  * ============================================================================
  */
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
 import { PrismaModule } from './prisma/prisma.module';
-import { OticaModule } from './modulos/oticas/otica.module';
 import { AutenticacaoModule } from './modulos/autenticacao/autenticacao.module';
 import { UsuarioModule } from './modulos/usuarios/usuario.module';
+import { OticaModule } from './modulos/oticas/otica.module';
+import { PerfilModule } from './modulos/perfil/perfil.module';
 import { CampanhaModule } from './modulos/campanhas/campanha.module';
+import { PremioModule } from './modulos/premios/premio.module';
+import { ResgateModule } from './modulos/resgates/resgate.module';
+import { RankingModule } from './modulos/ranking/ranking.module';
+import { DashboardModule } from './modulos/dashboard/dashboard.module';
 import { EnvioVendaModule } from './modulos/envio-venda/envio-venda.module';
 import { ValidacaoModule } from './modulos/validacao/validacao.module';
 import { RecompensaModule } from './modulos/recompensa/recompensa.module';
-import { RelatorioFinanceiroModule } from './modulos/relatorio-financeiro/relatorio-financeiro.module';
-import { PremioModule } from './modulos/premios/premio.module';
-import { ResgateModule } from './modulos/resgates/resgate.module';
 import { NotificacaoModule } from './modulos/notificacoes/notificacao.module';
-import { DashboardModule } from './modulos/dashboard/dashboard.module';
-import { RankingModule } from './modulos/ranking/ranking.module';
-import { UploadModule } from './modulos/upload/upload.module';
+import { RelatorioFinanceiroModule } from './modulos/relatorio-financeiro/relatorio-financeiro.module';
 import { ConfiguracaoModule } from './modulos/configuracao/configuracao.module';
-import { PerfilModule } from './modulos/perfil/perfil.module';
+import { UploadModule } from './modulos/upload/upload.module';
+
+import { JwtAuthGuard } from './modulos/comum/guards/jwt-auth.guard';
 
 /**
- * Módulo raiz da aplicação "EPS Campanhas".
+ * AppModule - Módulo raiz da aplicação.
+ * 
+ * Configura todos os módulos de feature, serviços globais e guards de segurança.
  */
 @Module({
   imports: [
-    // ConfigModule: Carrega variáveis de ambiente do arquivo .env
+    /**
+     * ConfigModule: Carrega variáveis de ambiente do arquivo .env.
+     * 
+     * isGlobal: true permite acessar ConfigService em qualquer módulo
+     * sem precisar importar ConfigModule explicitamente.
+     */
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
-      cache: true,
     }),
 
-    // PrismaModule: Gerencia conexão com banco de dados PostgreSQL
+    /**
+     * ThrottlerModule: Configura Rate Limiting global (NOVO - Vulnerabilidade #3).
+     * 
+     * Previne ataques de:
+     * - Brute Force: Tentativas ilimitadas de adivinhação de senhas
+     * - DoS (Denial of Service): Sobrecarga do servidor com requisições
+     * - Spam: Múltiplos registros/envios em curto período
+     * 
+     * Configuração Padrão:
+     * - ttl: 60000ms (1 minuto) - Janela de tempo para contagem de requisições
+     * - limit: 10 - Máximo de 10 requisições por minuto por IP
+     * 
+     * Rotas Específicas podem Sobrescrever:
+     * @Throttle({ default: { limit: 3, ttl: 60000 } })
+     * 
+     * Rotas podem Desabilitar:
+     * @SkipThrottle()
+     */
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
+
+    /**
+     * PrismaModule: Provê PrismaService para acesso ao banco de dados.
+     */
     PrismaModule,
 
-    // OticaModule: Gerenciamento de óticas parceiras (CRUD + verificação)
-    OticaModule,
-
-    // AutenticacaoModule: Registro e login de usuários (JWT)
+    /**
+     * Módulos de Feature (Domínio de Negócio)
+     */
     AutenticacaoModule,
-
-    // UsuarioModule: Gerenciamento de usuários pelo Admin (CRUD + Aprovação + Impersonação)
     UsuarioModule,
-
-    // CampanhasModule,
-    CampanhaModule,
-
-    // EnviosVendasModule,
-    EnvioVendaModule,
-
-    // ValidacaoDePedidos,
-    ValidacaoModule,
-
-    RecompensaModule,
-
-    // RelatorioFinanceiroModule,
-    RelatorioFinanceiroModule,
-
-    // PremiosModule,
-    PremioModule,
-    
-    // ResgatePremiosModule,
-    ResgateModule,
-
-    // NotificacoesModule,
-    NotificacaoModule,
-
-    //DashboardModule
-    DashboardModule,
-    
-    // RankingModule
-    RankingModule,
-
-    // UploadModule
-    UploadModule,
-
-    // ConfiguracaoModule
-    ConfiguracaoModule,
-
-    // PerfilModule
+    OticaModule,
     PerfilModule,
-
+    CampanhaModule,
+    PremioModule,
+    ResgateModule,
+    RankingModule,
+    DashboardModule,
+    EnvioVendaModule,
+    ValidacaoModule,
+    RecompensaModule,
+    NotificacaoModule,
+    RelatorioFinanceiroModule,
+    ConfiguracaoModule,
+    UploadModule,
   ],
+
   controllers: [],
-  providers: [],
+
+  /**
+   * Providers: Serviços e Guards globais.
+   * 
+   * NOVO (Sprint 18.2 - Segurança Avançada):
+   * - ThrottlerGuard: Aplica Rate Limiting em TODAS as rotas
+   * - JwtAuthGuard: Aplica autenticação JWT em TODAS as rotas (Secure by Default)
+   */
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -8,11 +8,9 @@ export declare class UsuarioController {
     constructor(usuarioService: UsuarioService);
     listar(filtros: ListarUsuariosFiltroDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string | null;
+        nome: string;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -24,17 +22,17 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }[]>;
     criar(dados: CriarUsuarioAdminDto): Promise<import("./usuario.service").CriacaoUsuarioResposta>;
     buscarPorId(id: string): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string | null;
+        nome: string;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -46,16 +44,16 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
     atualizar(id: string, dados: AtualizarUsuarioDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string | null;
+        nome: string;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -67,16 +65,16 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
     remover(id: string): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string | null;
+        nome: string;
         whatsapp: string | null;
         senhaHash: string;
         avatarUrl: string | null;
@@ -88,6 +86,8 @@ export declare class UsuarioController {
         tokenResetarSenha: string | null;
         tokenResetarSenhaExpira: Date | null;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         opticaId: string | null;
         gerenteId: string | null;
     }>;
@@ -95,11 +95,9 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            nome: string;
             email: string;
-            criadoEm: Date;
-            atualizadoEm: Date;
             cpf: string | null;
+            nome: string;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -111,6 +109,8 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+            criadoEm: Date;
+            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };
@@ -119,11 +119,9 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            nome: string;
             email: string;
-            criadoEm: Date;
-            atualizadoEm: Date;
             cpf: string | null;
+            nome: string;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -135,6 +133,8 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+            criadoEm: Date;
+            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };
@@ -143,11 +143,9 @@ export declare class UsuarioController {
         message: string;
         usuario: {
             id: string;
-            nome: string;
             email: string;
-            criadoEm: Date;
-            atualizadoEm: Date;
             cpf: string | null;
+            nome: string;
             whatsapp: string | null;
             senhaHash: string;
             avatarUrl: string | null;
@@ -159,11 +157,13 @@ export declare class UsuarioController {
             tokenResetarSenha: string | null;
             tokenResetarSenhaExpira: Date | null;
             mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue | null;
+            criadoEm: Date;
+            atualizadoEm: Date;
             opticaId: string | null;
             gerenteId: string | null;
         };
     }>;
-    personificar(id: string, req: any): Promise<import("../autenticacao/autenticacao.service").RespostaLogin>;
+    personificar(id: string, req: any): Promise<string>;
     iniciarResetSenha(id: string): Promise<{
         tokenOriginal: string;
     }>;

@@ -20,7 +20,7 @@
  * ============================================================================
  */
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsuarioController } from './usuario.controller';
 import { UsuarioService } from './usuario.service';
 import { AutenticacaoModule } from '../autenticacao/autenticacao.module';
@@ -32,7 +32,10 @@ import { OticaModule } from '../oticas/otica.module';
    * AutenticacaoModule: Exporta AutenticacaoService para impersonação.
    * OticaModule: Exporta validações de ótica ativa.
    */
-  imports: [AutenticacaoModule, OticaModule],
+  imports:[
+    forwardRef(() => AutenticacaoModule), // ✅ Resolver circular dependency
+    OticaModule,
+  ],
   /**
    * Controllers: Controladores HTTP deste módulo.
    */

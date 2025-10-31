@@ -9,12 +9,12 @@ export declare class RankingController {
             posicao: number;
             id: string;
             nome: string;
-            optica: {
-                nome: string;
-            };
             avatarUrl: string;
             rankingMoedinhas: number;
             nivel: import(".prisma/client").$Enums.NivelVendedor;
+            optica: {
+                nome: string;
+            };
         }[];
         paginaAtual: number;
         totalPaginas: number;

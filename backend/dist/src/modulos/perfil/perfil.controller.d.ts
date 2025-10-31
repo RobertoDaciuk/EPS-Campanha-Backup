@@ -7,31 +7,29 @@ export declare class PerfilController {
     private getUsuarioId;
     meuPerfil(req: any): Promise<{
         id: string;
-        nome: string;
         email: string;
+        cpf: string;
+        nome: string;
+        whatsapp: string;
+        avatarUrl: string;
+        papel: import(".prisma/client").$Enums.PapelUsuario;
+        status: import(".prisma/client").$Enums.StatusUsuario;
+        saldoMoedinhas: number;
+        rankingMoedinhas: number;
+        nivel: import(".prisma/client").$Enums.NivelVendedor;
+        mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue;
         criadoEm: Date;
         atualizadoEm: Date;
         optica: {
-            cnpj: string;
             nome: string;
+            cnpj: string;
         };
-        cpf: string;
-        whatsapp: string;
-        avatarUrl: string;
-        papel: import(".prisma/client").$Enums.PapelUsuario;
-        status: import(".prisma/client").$Enums.StatusUsuario;
-        saldoMoedinhas: number;
-        rankingMoedinhas: number;
-        nivel: import(".prisma/client").$Enums.NivelVendedor;
-        mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue;
     }>;
     atualizarMeuPerfil(req: any, dto: AtualizarPerfilDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        nome: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -40,14 +38,14 @@ export declare class PerfilController {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizarMinhaSenha(req: any, dto: AtualizarSenhaDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        nome: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -56,5 +54,7 @@ export declare class PerfilController {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: import("@prisma/client/runtime/library").JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
 }

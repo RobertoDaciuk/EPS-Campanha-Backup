@@ -7,31 +7,29 @@ export declare class PerfilService {
     constructor(prisma: PrismaService);
     meuPerfil(usuarioId: string): Promise<{
         id: string;
-        nome: string;
         email: string;
+        cpf: string;
+        nome: string;
+        whatsapp: string;
+        avatarUrl: string;
+        papel: import(".prisma/client").$Enums.PapelUsuario;
+        status: import(".prisma/client").$Enums.StatusUsuario;
+        saldoMoedinhas: number;
+        rankingMoedinhas: number;
+        nivel: import(".prisma/client").$Enums.NivelVendedor;
+        mapeamentoPlanilhaSalvo: Prisma.JsonValue;
         criadoEm: Date;
         atualizadoEm: Date;
         optica: {
-            cnpj: string;
             nome: string;
+            cnpj: string;
         };
-        cpf: string;
-        whatsapp: string;
-        avatarUrl: string;
-        papel: import(".prisma/client").$Enums.PapelUsuario;
-        status: import(".prisma/client").$Enums.StatusUsuario;
-        saldoMoedinhas: number;
-        rankingMoedinhas: number;
-        nivel: import(".prisma/client").$Enums.NivelVendedor;
-        mapeamentoPlanilhaSalvo: Prisma.JsonValue;
     }>;
     atualizarMeuPerfil(usuarioId: string, dto: AtualizarPerfilDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        nome: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -40,14 +38,14 @@ export declare class PerfilService {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: Prisma.JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizarSenha(usuarioId: string, dto: AtualizarSenhaDto): Promise<{
         id: string;
-        nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        nome: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -56,5 +54,7 @@ export declare class PerfilService {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: Prisma.JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
 }

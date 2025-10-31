@@ -52,9 +52,9 @@ export declare class CampanhaService {
         })[];
     } & {
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;

@@ -316,6 +316,48 @@ model Usuario {
 }
 
 // ============================================================================
+// MODEL: LogAutenticacao (NOVO - Sprint 18.2 - Auditoria de Segurança)
+// ============================================================================
+/// Livro-razão de auditoria para todas as tentativas de autenticação.
+/// Registra logins, registros e resets de senha para detecção de ataques.
+model LogAutenticacao {
+  /// ID único do log (UUID v4)
+  id String @id @default(uuid())
+
+  /// Tipo do evento (LOGIN_SUCESSO, LOGIN_FALHA_CREDENCIAIS, etc.)
+  tipo String
+
+  /// Email tentado (se aplicável)
+  email String?
+
+  /// CPF tentado (se aplicável, sanitizado)
+  cpf String?
+
+  /// ID do usuário (se login bem-sucedido)
+  usuarioId String?
+
+  /// Endereço IP do cliente
+  ipAddress String
+
+  /// User-Agent do navegador
+  userAgent String?
+
+  /// Detalhes adicionais em formato JSON
+  detalhes Json?
+
+  /// Data/hora da tentativa
+  criadoEm DateTime @default(now())
+
+  @@index([email])
+  @@index([tipo])
+  @@index([criadoEm])
+  @@index([ipAddress])
+  @@index([email, tipo, criadoEm])
+  @@map("logs_autenticacao")
+}
+
+
+// ============================================================================
 // MODEL: Campanha (ATUALIZADO - Sprint 17)
 // ============================================================================
 /// Representa uma campanha de vendas com regras de cartelas e pontuação.

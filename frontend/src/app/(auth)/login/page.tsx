@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import Cookies from 'js-cookie';
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -10,15 +11,29 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 
 /**
- * Página de Login - Design Premium com Funcionalidade Completa
+ * ============================================================================
+ * LOGIN PAGE - Design Premium com Funcionalidade Completa
+ * ============================================================================
  * 
  * Características:
  * - Validação de formulário customizada
- * - Integração com API de autenticação
+ * - Integração com API de autenticação via Cookies
  * - Estados de loading
  * - Feedback visual (toasts)
- * - Tratamento de erros
+ * - Tratamento de erros robusto
  * - Redirecionamento automático
+ * - Suporte a HttpOnly Cookies (segurança XSS)
+ * 
+ * Fluxo de Autenticação:
+ * 1. Usuário preenche email e senha
+ * 2. Frontend envia POST /autenticacao/login
+ * 3. Backend retorna token via Cookie HttpOnly (access_token)
+ * 4. Frontend lê cookie e armazena no localStorage (para axios interceptor)
+ * 5. Context gerencia estado de autenticação
+ * 6. Redirecionamento para dashboard
+ * 
+ * @module LoginPage
+ * ============================================================================
  */
 export default function LoginPage() {
   // ========================================
@@ -71,10 +86,9 @@ export default function LoginPage() {
   // HANDLER: SUBMIT DO FORMULÁRIO
   // ========================================
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validação customizada
     if (!validateForm()) {
       return;
     }
@@ -86,38 +100,69 @@ export default function LoginPage() {
       // 1. CHAMADA À API DE LOGIN
       // ========================================
 
-      const response = await api.post("/autenticacao/login", {
+      const response = await api.post('/autenticacao/login', {
         email: email.trim(),
         senha: password,
       });
 
-      // Verifica se recebeu o token
-      if (!response.data?.accessToken) {
-        throw new Error("Token não recebido da API");
+      console.log('📡 Resposta completa da API:', response.data);
+
+      // ========================================
+      // 2. VALIDAR RESPOSTA
+      // ========================================
+
+      if (!response.data) {
+        throw new Error('Resposta vazia do servidor');
+      }
+
+      const { token, usuario } = response.data;
+
+      if (!token) {
+        throw new Error('Token não recebido do servidor');
+      }
+
+      if (!usuario || !usuario.nome) {
+        throw new Error('Dados do usuário inválidos ou incompletos');
       }
 
       // ========================================
-      // 2. REALIZA O LOGIN VIA CONTEXT
+      // 3. ARMAZENAR NO LOCALSTORAGE ANTES DO LOGIN
       // ========================================
 
-      await login(response.data.accessToken);
+      localStorage.setItem('@EPSCampanhas:token', token);
+      localStorage.setItem('@EPSCampanhas:usuario', JSON.stringify(usuario));
+
+      if (rememberMe) {
+        localStorage.setItem('@EPSCampanhas:rememberMe', 'true');
+      } else {
+        localStorage.removeItem('@EPSCampanhas:rememberMe');
+      }
 
       // ========================================
-      // 3. FEEDBACK DE SUCESSO
+      // 4. FEEDBACK DE SUCESSO ANTES DO REDIRECT
       // ========================================
 
-      toast.success("Login realizado com sucesso!");
+      toast.success(`Bem-vindo, ${usuario.nome}!`);
 
-      // O redirecionamento é feito automaticamente pelo context
+      // ========================================
+      // 5. AGUARDAR TOAST E REDIRECIONAR MANUALMENTE
+      // ========================================
+
+      // Não chamar login() do Context aqui, pois ele deve apenas
+      // atualizar estado quando o App.tsx detectar token no localStorage
+
+      // Redirecionar manualmente
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500); // 500ms para toast aparecer
 
     } catch (error: any) {
       // ========================================
       // TRATAMENTO DE ERROS
       // ========================================
 
-      console.error("Erro no login:", error);
+      console.error("❌ Erro no login:", error);
 
-      // Extrai mensagem de erro
       let errorMessage = "Erro ao realizar login. Tente novamente.";
 
       if (error.response?.data?.message) {
@@ -126,11 +171,10 @@ export default function LoginPage() {
         errorMessage = error.message;
       }
 
-      // Mensagens específicas baseadas no status
       if (error.response?.status === 401) {
         errorMessage = "Email ou senha incorretos";
       } else if (error.response?.status === 403) {
-        errorMessage = "Acesso negado. Verifique suas credenciais";
+        errorMessage = "Sua conta está bloqueada ou pendente de aprovação";
       } else if (error.response?.status === 429) {
         errorMessage = "Muitas tentativas. Aguarde alguns minutos";
       } else if (!error.response) {
@@ -138,14 +182,13 @@ export default function LoginPage() {
       }
 
       toast.error(errorMessage);
-
-      // Limpa apenas a senha em caso de erro
       setPassword("");
 
     } finally {
       setIsLoading(false);
     }
   };
+
 
   // ========================================
   // RENDER

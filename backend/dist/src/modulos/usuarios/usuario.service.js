@@ -41,6 +41,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var UsuarioService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsuarioService = void 0;
@@ -342,7 +345,6 @@ let UsuarioService = UsuarioService_1 = class UsuarioService {
             id: usuarioAlvo.id,
             email: usuarioAlvo.email,
             papel: usuarioAlvo.papel,
-            nome: usuarioAlvo.nome,
         });
         this.logger.log(`✅ Token de impersonação gerado: Admin personificando ${usuarioAlvo.nome} (${usuarioAlvo.email})`);
         return token;
@@ -370,6 +372,7 @@ let UsuarioService = UsuarioService_1 = class UsuarioService {
 exports.UsuarioService = UsuarioService;
 exports.UsuarioService = UsuarioService = UsuarioService_1 = __decorate([
     (0, common_1.Injectable)(),
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => autenticacao_service_1.AutenticacaoService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         autenticacao_service_1.AutenticacaoService])
 ], UsuarioService);

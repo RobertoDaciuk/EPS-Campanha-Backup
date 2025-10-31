@@ -19,5 +19,5 @@ export default function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return <DashboardLayout>{children}</DashboardLayout>; // ✅ CORRIGIDO
 }

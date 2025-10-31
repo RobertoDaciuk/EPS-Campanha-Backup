@@ -25,7 +25,7 @@ export declare class UsuarioService {
     aprovar(id: string): Promise<Usuario>;
     bloquear(id: string): Promise<Usuario>;
     desbloquear(id: string): Promise<Usuario>;
-    personificar(idUsuarioAdmin: string, idUsuarioAlvo: string): Promise<import("../autenticacao/autenticacao.service").RespostaLogin>;
+    personificar(idUsuarioAdmin: string, idUsuarioAlvo: string): Promise<string>;
     iniciarResetSenhaAdmin(idUsuario: string): Promise<{
         tokenOriginal: string;
     }>;

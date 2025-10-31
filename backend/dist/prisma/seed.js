@@ -55,7 +55,8 @@ async function main() {
     await prisma.usuario.deleteMany({});
     await prisma.optica.deleteMany({});
     await prisma.configuracaoGlobal.deleteMany({});
-    console.log('🗑️ Dados antigos limpos.');
+    await prisma.logAutenticacao.deleteMany({});
+    console.log('🗑️  Dados antigos limpos.');
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
     console.log(`🔒 Senha padrão hasheada.`);
     console.log('🏢 Criando Óticas (Matriz e Filiais)...');
@@ -96,15 +97,18 @@ async function main() {
         data: {
             nome: 'Admin Supremo EPS',
             email: 'admin@eps.com.br',
+            cpf: '00000000000',
             senhaHash: senhaHash,
             papel: client_1.PapelUsuario.ADMIN,
             status: client_1.StatusUsuario.ATIVO,
+            opticaId: opticaMatriz.id,
         },
     });
     const gerenteMatriz = await prisma.usuario.create({
         data: {
             nome: 'Gerente Matriz',
             email: 'gerente.matriz@eps.com.br',
+            cpf: '11111111111',
             senhaHash: senhaHash,
             papel: client_1.PapelUsuario.GERENTE,
             status: client_1.StatusUsuario.ATIVO,
@@ -115,6 +119,7 @@ async function main() {
         data: {
             nome: 'Gerente Filial Alfa',
             email: 'gerente.alfa@eps.com.br',
+            cpf: '22222222222',
             senhaHash: senhaHash,
             papel: client_1.PapelUsuario.GERENTE,
             status: client_1.StatusUsuario.ATIVO,
@@ -125,6 +130,7 @@ async function main() {
         data: {
             nome: 'Gerente Filial Beta',
             email: 'gerente.beta@eps.com.br',
+            cpf: '33333333333',
             senhaHash: senhaHash,
             papel: client_1.PapelUsuario.GERENTE,
             status: client_1.StatusUsuario.ATIVO,
@@ -139,7 +145,8 @@ async function main() {
         const oticaIndex = i % oticas.length;
         const nome = `Vendedor ${String(i).padStart(2, '0')}`;
         const email = `vendedor${String(i).padStart(2, '0')}@eps.com.br`;
-        const rankingMoedinhas = Math.floor(Math.random() * 5000) + 500;
+        const cpf = `${String(44444444400 + i).substring(0, 11)}`;
+        const rankingMoedinhas = Math.floor(Math.random() * 15000) + 500;
         let nivel = client_1.NivelVendedor.BRONZE;
         if (rankingMoedinhas >= 10000)
             nivel = client_1.NivelVendedor.DIAMANTE;
@@ -151,6 +158,7 @@ async function main() {
             data: {
                 nome: nome,
                 email: email,
+                cpf: cpf,
                 senhaHash: senhaHash,
                 papel: client_1.PapelUsuario.VENDEDOR,
                 status: client_1.StatusUsuario.ATIVO,
@@ -185,7 +193,7 @@ async function main() {
                 create: [
                     {
                         numeroCartela: 1,
-                        descricao: 'Meta Principal',
+                        descricao: 'Cartela Bronze - Meta Inicial',
                         requisitos: {
                             create: [
                                 {
@@ -195,8 +203,16 @@ async function main() {
                                     ordem: 1,
                                     condicoes: {
                                         create: [
-                                            { campo: client_1.CampoVerificacao.NOME_PRODUTO, operador: client_1.OperadorCondicao.CONTEM, valor: 'Kit Premium' },
-                                            { campo: client_1.CampoVerificacao.VALOR_VENDA, operador: client_1.OperadorCondicao.MAIOR_QUE, valor: '200' },
+                                            {
+                                                campo: client_1.CampoVerificacao.NOME_PRODUTO,
+                                                operador: client_1.OperadorCondicao.CONTEM,
+                                                valor: 'Kit Premium',
+                                            },
+                                            {
+                                                campo: client_1.CampoVerificacao.VALOR_VENDA,
+                                                operador: client_1.OperadorCondicao.MAIOR_QUE,
+                                                valor: '200',
+                                            },
                                         ],
                                     },
                                 },
@@ -223,6 +239,7 @@ async function main() {
                 create: [
                     {
                         numeroCartela: 1,
+                        descricao: 'Cartela Bronze - Lentes Simples',
                         requisitos: {
                             create: [
                                 {
@@ -230,13 +247,22 @@ async function main() {
                                     quantidade: 2,
                                     tipoUnidade: client_1.TipoUnidade.UNIDADE,
                                     ordem: 1,
-                                    condicoes: { create: [{ campo: client_1.CampoVerificacao.NOME_PRODUTO, operador: client_1.OperadorCondicao.CONTEM, valor: 'Lente Simples' }] },
+                                    condicoes: {
+                                        create: [
+                                            {
+                                                campo: client_1.CampoVerificacao.NOME_PRODUTO,
+                                                operador: client_1.OperadorCondicao.CONTEM,
+                                                valor: 'Lente Simples',
+                                            },
+                                        ],
+                                    },
                                 },
                             ],
                         },
                     },
                     {
                         numeroCartela: 2,
+                        descricao: 'Cartela Prata - Lentes Simples Avançadas',
                         requisitos: {
                             create: [
                                 {
@@ -244,7 +270,15 @@ async function main() {
                                     quantidade: 2,
                                     tipoUnidade: client_1.TipoUnidade.UNIDADE,
                                     ordem: 1,
-                                    condicoes: { create: [{ campo: client_1.CampoVerificacao.NOME_PRODUTO, operador: client_1.OperadorCondicao.CONTEM, valor: 'Lente Simples' }] },
+                                    condicoes: {
+                                        create: [
+                                            {
+                                                campo: client_1.CampoVerificacao.NOME_PRODUTO,
+                                                operador: client_1.OperadorCondicao.CONTEM,
+                                                valor: 'Lente Simples',
+                                            },
+                                        ],
+                                    },
                                 },
                             ],
                         },
@@ -282,18 +316,38 @@ async function main() {
         skipDuplicates: true,
     });
     console.log('✨ Prêmios criados.');
-    console.log('⚙️ Criando Configurações Globais de Teste...');
+    console.log('⚙️  Criando Configurações Globais de Teste...');
     await prisma.configuracaoGlobal.createMany({
         data: [
-            { chave: 'PONTOS_NIVEL_PRATA', valor: '1000', descricao: 'Moedinhas para atingir Prata (Seed)' },
-            { chave: 'PONTOS_NIVEL_OURO', valor: '5000', descricao: 'Moedinhas para atingir Ouro (Seed)' },
-            { chave: 'PONTOS_NIVEL_DIAMANTE', valor: '10000', descricao: 'Moedinhas para atingir Diamante (Seed)' },
-            { chave: 'PERCENTUAL_MAX_GERENTE', valor: '0.15', descricao: 'Comissão máxima do gerente (15%) (Seed)' },
+            {
+                chave: 'PONTOS_NIVEL_PRATA',
+                valor: '1000',
+                descricao: 'Moedinhas para atingir Prata (Seed)',
+            },
+            {
+                chave: 'PONTOS_NIVEL_OURO',
+                valor: '5000',
+                descricao: 'Moedinhas para atingir Ouro (Seed)',
+            },
+            {
+                chave: 'PONTOS_NIVEL_DIAMANTE',
+                valor: '10000',
+                descricao: 'Moedinhas para atingir Diamante (Seed)',
+            },
+            {
+                chave: 'PERCENTUAL_MAX_GERENTE',
+                valor: '0.15',
+                descricao: 'Comissão máxima do gerente (15%) (Seed)',
+            },
         ],
         skipDuplicates: true,
     });
     console.log('✨ Configurações criadas.');
     console.log(`\n✅ Seeding concluído com sucesso!`);
+    console.log(`\n📋 CREDENCIAIS DE TESTE:`);
+    console.log(`   Admin: admin@eps.com.br / ${SENHA_PADRAO}`);
+    console.log(`   Gerente Matriz: gerente.matriz@eps.com.br / ${SENHA_PADRAO}`);
+    console.log(`   Vendedor 01: vendedor01@eps.com.br / ${SENHA_PADRAO}`);
 }
 main()
     .catch((e) => {

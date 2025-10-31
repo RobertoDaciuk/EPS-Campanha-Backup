@@ -18,15 +18,21 @@ let PapeisGuard = class PapeisGuard {
         this.reflector = reflector;
     }
     canActivate(context) {
-        const papeisNecessarios = this.reflector.getAllAndOverride(papeis_decorator_1.PAPEIS_CHAVE, [
-            context.getHandler(),
-            context.getClass(),
-        ]);
-        if (!papeisNecessarios) {
+        const papeisNecessarios = this.reflector.getAllAndOverride(papeis_decorator_1.PAPEIS_CHAVE, [context.getHandler(), context.getClass()]);
+        if (!papeisNecessarios || papeisNecessarios.length === 0) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
-        return papeisNecessarios.some((papel) => user?.papel === papel);
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        if (!user) {
+            throw new common_1.UnauthorizedException('Usuário não autenticado. Token JWT ausente ou inválido.');
+        }
+        const temPapelNecessario = papeisNecessarios.some((papel) => user.papel === papel);
+        if (!temPapelNecessario) {
+            throw new common_1.ForbiddenException(`Acesso negado. Papel necessário: ${papeisNecessarios.join(' ou ')}. ` +
+                `Você possui o papel: ${user.papel}.`);
+        }
+        return true;
     }
 };
 exports.PapeisGuard = PapeisGuard;

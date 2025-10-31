@@ -14,6 +14,8 @@ const config_1 = require("@nestjs/config");
 const autenticacao_controller_1 = require("./autenticacao.controller");
 const autenticacao_service_1 = require("./autenticacao.service");
 const jwt_strategy_1 = require("./estrategias/jwt.strategy");
+const usuario_module_1 = require("../usuarios/usuario.module");
+const prisma_module_1 = require("../../prisma/prisma.module");
 let AutenticacaoModule = class AutenticacaoModule {
 };
 exports.AutenticacaoModule = AutenticacaoModule;
@@ -27,18 +29,26 @@ exports.AutenticacaoModule = AutenticacaoModule = __decorate([
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],
                 useFactory: (configService) => {
+                    const jwtSecret = configService.get('JWT_SECRET');
+                    if (!jwtSecret) {
+                        throw new Error('\n\nERRO CRÍTICO: JWT_SECRET não configurado no .env\n' +
+                            'Configure JWT_SECRET antes de iniciar o sistema.\n');
+                    }
+                    const jwtExpiresIn = configService.get('JWT_EXPIRES_IN', '7d');
                     return {
-                        secret: configService.get('JWT_SECRET') || 'default-secret',
+                        secret: jwtSecret,
                         signOptions: {
-                            expiresIn: configService.get('JWT_EXPIRES_IN') || '7d',
+                            expiresIn: jwtExpiresIn,
                         },
                     };
                 },
             }),
+            (0, common_1.forwardRef)(() => usuario_module_1.UsuarioModule),
+            prisma_module_1.PrismaModule,
         ],
         controllers: [autenticacao_controller_1.AutenticacaoController],
         providers: [autenticacao_service_1.AutenticacaoService, jwt_strategy_1.JwtStrategy],
-        exports: [jwt_strategy_1.JwtStrategy, passport_1.PassportModule, autenticacao_service_1.AutenticacaoService],
+        exports: [autenticacao_service_1.AutenticacaoService],
     })
 ], AutenticacaoModule);
 //# sourceMappingURL=autenticacao.module.js.map

@@ -7,9 +7,9 @@ export declare class CampanhaController {
     constructor(campanhaService: CampanhaService);
     listar(req: any): Promise<{
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
@@ -21,9 +21,9 @@ export declare class CampanhaController {
     }[]>;
     criar(dto: CriarCampanhaDto): Promise<{
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
@@ -69,9 +69,9 @@ export declare class CampanhaController {
         })[];
     } & {
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
@@ -83,9 +83,9 @@ export declare class CampanhaController {
     }>;
     atualizar(id: string, dto: AtualizarCampanhaDto): Promise<{
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
@@ -97,9 +97,9 @@ export declare class CampanhaController {
     }>;
     remover(id: string): Promise<{
         id: string;
+        status: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
