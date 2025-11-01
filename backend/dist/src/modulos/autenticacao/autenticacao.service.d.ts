@@ -25,8 +25,8 @@ export declare class AutenticacaoService {
             email: string;
             papel: import(".prisma/client").$Enums.PapelUsuario;
             optica: {
-                id: string;
                 nome: string;
+                id: string;
             };
         };
     }>;
@@ -39,5 +39,8 @@ export declare class AutenticacaoService {
         papel: string;
     }): string;
     private _limparCpf;
+    private _validarCpf;
+    private _extrairIp;
+    private _extrairUserAgent;
     private _registrarlogAutenticacao;
 }

@@ -1,20 +1,21 @@
 /**
  * ============================================================================
- * DASHBOARD CONTROLLER - Rotas (Implementado)
+ * DASHBOARD CONTROLLER - Rotas (REFATORADO - RBAC Declarativo)
  * ============================================================================
  *
  * Propósito:
  * Expõe um endpoint unificado e protegido para buscar os KPIs
  * relevantes para o usuário autenticado.
  *
- * Endpoint:
- * - GET /api/dashboard/kpis (Protegido por JWT)
+ * REFATORAÇÃO (Princípio 5.4 - RBAC Declarativo):
+ * - ADICIONADO: @UseGuards(PapeisGuard) e @Papeis('ADMIN', 'GERENTE', 'VENDEDOR')
+ * para controle de acesso explícito e padronizado.
+ * - REMOVIDO: Lógica redundante de validação `if (!usuario)` (já tratada por Guards).
+ * - SIMPLIFICADO: O `switch` agora foca apenas no roteamento do serviço,
+ * pois o `PapeisGuard` garante que o papel é um dos permitidos.
  *
- * Princípios Aplicados:
- * - Princípio 5.4 (Segurança RBAC): A lógica de RBAC é aplicada no
- * controlador para direcionar a chamada ao serviço correto.
- * - Princípio 5.5 (Isolamento de Dados): O ID do usuário autenticado
- * é extraído do request (`req.user`) e passado para o serviço.
+ * Endpoint:
+ * - GET /api/dashboard/kpis (Protegido por JWT e Papeis)
  *
  * @module DashboardModule
  * ============================================================================
@@ -29,6 +30,8 @@ import {
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../comum/guards/jwt-auth.guard';
+import { PapeisGuard } from '../comum/guards/papeis.guard'; // Importado
+import { Papeis } from '../comum/decorators/papeis.decorator'; // Importado
 import { PapelUsuario } from '@prisma/client';
 
 /**
@@ -52,16 +55,16 @@ export class DashboardController {
    *
    * @param req - Objeto Request injetado, contendo `req.user` do JwtAuthGuard.
    * @returns Objeto contendo os KPIs específicos do perfil do usuário.
-   * @throws UnauthorizedException - Se o usuário não estiver autenticado.
+   * @throws UnauthorizedException - Se o usuário não estiver autenticado (tratado por Guards).
+   * @throws ForbiddenException - Se o papel for inválido (tratado por PapeisGuard).
    */
-  @UseGuards(JwtAuthGuard) // Protege a rota, garantindo que req.user exista
+  @UseGuards(JwtAuthGuard, PapeisGuard) // Aplica Autenticação e Autorização em ordem
+  @Papeis(PapelUsuario.ADMIN, PapelUsuario.GERENTE, PapelUsuario.VENDEDOR) // Permite apenas os 3 papéis principais
   @Get('kpis')
   async getKpis(@Request() req: { user: UsuarioAutenticado }) {
     const usuario = req.user;
 
-    if (!usuario) {
-      throw new UnauthorizedException('Usuário não autenticado.');
-    }
+    // A validação `if (!usuario)` é agora feita pelo PapeisGuard.
 
     // Log de desenvolvimento (Princípio 5.3)
     if (process.env.NODE_ENV === 'development') {
@@ -70,7 +73,7 @@ export class DashboardController {
       );
     }
 
-    // Direciona a chamada com base no Papel (Princípio 5.4)
+    // Direciona a chamada com base no Papel (Princípio 5.4 e 5.5)
     switch (usuario.papel) {
       case PapelUsuario.ADMIN:
         return this.dashboardService.getKpisAdmin();
@@ -78,9 +81,9 @@ export class DashboardController {
         return this.dashboardService.getKpisGerente(usuario.id);
       case PapelUsuario.VENDEDOR:
         return this.dashboardService.getKpisVendedor(usuario.id);
-      default:
-        // Caso um papel desconhecido (ex: futuro 'AUDITOR') tente acessar
-        throw new UnauthorizedException('Perfil de usuário não suportado.');
+      // O case default não é mais necessário, pois PapeisGuard já bloqueia papéis não listados.
+      // Se um papel não listado (ex: futuro 'AUDITOR') tentar acessar,
+      // ele receberá 403 Forbidden do PapeisGuard.
     }
   }
 }

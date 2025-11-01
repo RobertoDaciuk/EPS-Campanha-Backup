@@ -21,8 +21,8 @@ export declare class AutenticacaoController {
             email: string;
             papel: import(".prisma/client").$Enums.PapelUsuario;
             optica: {
-                id: string;
                 nome: string;
+                id: string;
             };
         };
     }>;

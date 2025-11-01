@@ -8,19 +8,19 @@ export declare class RankingService {
         posicao: number;
     }>;
     getRankingEquipe(gerenteId: string): Promise<{
-        id: string;
         nome: string;
+        id: string;
         avatarUrl: string;
         rankingMoedinhas: number;
     }[]>;
     getRankingGeralPaginado(dto: PaginacaoRankingDto): Promise<{
         dados: {
             posicao: number;
-            id: string;
             nome: string;
             optica: {
                 nome: string;
             };
+            id: string;
             avatarUrl: string;
             rankingMoedinhas: number;
             nivel: import(".prisma/client").$Enums.NivelVendedor;

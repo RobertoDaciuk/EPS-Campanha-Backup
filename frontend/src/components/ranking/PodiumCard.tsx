@@ -9,7 +9,8 @@ export interface PodiumUser {
   id: string
   nome: string
   avatarUrl?: string | null
-  rankingMoedinhas: number
+  rankingMoedinhas?: number
+  rankingPontosReais?: number
   posicao: number
   nivel?: string
   optica?: {
@@ -19,6 +20,7 @@ export interface PodiumUser {
 
 interface Props {
   user: PodiumUser
+  metric: 'moedinhas' | 'pontos'
   /** size variant: 'lg' for 1st, 'md' for 2nd/3rd */
   size?: 'lg' | 'md' | 'sm'
 }
@@ -64,8 +66,15 @@ const NivelBadge: React.FC<{ nivel?: string }> = ({ nivel }) => {
   )
 }
 
-const PodiumCard: React.FC<Props> = ({ user, size: propSize }) => {
-  const { posicao, nome, avatarUrl, rankingMoedinhas, nivel, optica } = user
+const PodiumCard: React.FC<Props> = ({ user, metric, size: propSize }) => {
+  const { posicao, nome, avatarUrl, nivel, optica } = user
+
+  const valor = metric === 'moedinhas' ? user.rankingMoedinhas ?? 0 : user.rankingPontosReais ?? 0;
+  const valorFormatado = valor.toLocaleString('pt-BR', {
+    minimumFractionDigits: metric === 'pontos' ? 2 : 0,
+    maximumFractionDigits: metric === 'pontos' ? 2 : 0,
+  });
+  const labelMetrica = metric === 'moedinhas' ? 'Moedinhas' : 'Pontos (R$)';
 
   // Configuração visual por posição
   const config = {
@@ -229,13 +238,13 @@ const PodiumCard: React.FC<Props> = ({ user, size: propSize }) => {
         </p>
       )}
 
-      {/* Moedinhas - CORRIGIDO: Exibe o valor das moedinhas */}
+      {/* Valor da Métrica */}
       <div className="mt-4 flex flex-col items-center gap-1">
         <span className={`${classes.points} font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent`}>
-          {rankingMoedinhas.toLocaleString('pt-BR')}
+          {valorFormatado}
         </span>
         <span className="text-xs text-muted-foreground uppercase tracking-wider">
-          moedinhas
+          {labelMetrica}
         </span>
       </div>
 

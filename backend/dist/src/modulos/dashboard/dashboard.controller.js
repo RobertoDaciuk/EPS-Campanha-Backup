@@ -16,6 +16,8 @@ exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
 const dashboard_service_1 = require("./dashboard.service");
 const jwt_auth_guard_1 = require("../comum/guards/jwt-auth.guard");
+const papeis_guard_1 = require("../comum/guards/papeis.guard");
+const papeis_decorator_1 = require("../comum/decorators/papeis.decorator");
 const client_1 = require("@prisma/client");
 let DashboardController = class DashboardController {
     constructor(dashboardService) {
@@ -23,9 +25,6 @@ let DashboardController = class DashboardController {
     }
     async getKpis(req) {
         const usuario = req.user;
-        if (!usuario) {
-            throw new common_1.UnauthorizedException('Usuário não autenticado.');
-        }
         if (process.env.NODE_ENV === 'development') {
             console.log(`[DASHBOARD] Buscando KPIs para: ${usuario.email} (Papel: ${usuario.papel})`);
         }
@@ -36,14 +35,13 @@ let DashboardController = class DashboardController {
                 return this.dashboardService.getKpisGerente(usuario.id);
             case client_1.PapelUsuario.VENDEDOR:
                 return this.dashboardService.getKpisVendedor(usuario.id);
-            default:
-                throw new common_1.UnauthorizedException('Perfil de usuário não suportado.');
         }
     }
 };
 exports.DashboardController = DashboardController;
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, papeis_guard_1.PapeisGuard),
+    (0, papeis_decorator_1.Papeis)(client_1.PapelUsuario.ADMIN, client_1.PapelUsuario.GERENTE, client_1.PapelUsuario.VENDEDOR),
     (0, common_1.Get)('kpis'),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),

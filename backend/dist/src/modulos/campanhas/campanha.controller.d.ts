@@ -7,31 +7,31 @@ export declare class CampanhaController {
     constructor(campanhaService: CampanhaService);
     listar(req: any): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: import("@prisma/client/runtime/library").Decimal;
+        status: string;
         percentualGerente: import("@prisma/client/runtime/library").Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }[]>;
     criar(dto: CriarCampanhaDto): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: import("@prisma/client/runtime/library").Decimal;
+        status: string;
         percentualGerente: import("@prisma/client/runtime/library").Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     buscarPorId(id: string, req: any): Promise<{
         oticasAlvo: {
@@ -51,9 +51,9 @@ export declare class CampanhaController {
                 }[];
             } & {
                 id: string;
+                descricao: string;
                 criadoEm: Date;
                 atualizadoEm: Date;
-                descricao: string;
                 quantidade: number;
                 tipoUnidade: import(".prisma/client").$Enums.TipoUnidade;
                 ordem: number;
@@ -61,52 +61,52 @@ export declare class CampanhaController {
             })[];
         } & {
             id: string;
+            descricao: string | null;
             criadoEm: Date;
             atualizadoEm: Date;
-            descricao: string | null;
             numeroCartela: number;
             campanhaId: string;
         })[];
     } & {
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: import("@prisma/client/runtime/library").Decimal;
+        status: string;
         percentualGerente: import("@prisma/client/runtime/library").Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizar(id: string, dto: AtualizarCampanhaDto): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: import("@prisma/client/runtime/library").Decimal;
+        status: string;
         percentualGerente: import("@prisma/client/runtime/library").Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
-    remover(id: string): Promise<{
+    remover(id: string, req: any): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: import("@prisma/client/runtime/library").Decimal;
+        status: string;
         percentualGerente: import("@prisma/client/runtime/library").Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
 }

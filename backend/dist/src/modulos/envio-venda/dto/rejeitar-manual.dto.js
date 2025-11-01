@@ -11,13 +11,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RejeitarManualDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 class RejeitarManualDto {
 }
 exports.RejeitarManualDto = RejeitarManualDto;
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            return value.trim().replace(/<[^>]*>/g, '').replace(/&/g, '&amp;');
+        }
+        return value;
+    }),
     (0, class_validator_1.IsString)({ message: 'O motivo deve ser uma string.' }),
     (0, class_validator_1.IsNotEmpty)({ message: 'O motivo não pode estar vazio.' }),
     (0, class_validator_1.MinLength)(5, { message: 'O motivo deve ter pelo menos 5 caracteres.' }),
+    (0, class_validator_1.MaxLength)(500, { message: 'O motivo não pode exceder 500 caracteres.' }),
     __metadata("design:type", String)
 ], RejeitarManualDto.prototype, "motivoRejeicao", void 0);
 //# sourceMappingURL=rejeitar-manual.dto.js.map

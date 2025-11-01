@@ -75,7 +75,7 @@ let DashboardService = class DashboardService {
             totalVendedores: totalVendedores ?? 0,
             vendasTimeAnalise: vendasTimeAnalise ?? 0,
             comissaoPendente: comissaoPendente._sum.valor?.toNumber() ?? 0,
-            totalMoedinhasTime: totalMoedinhasTime._sum.rankingMoedinhas ?? 0,
+            totalMoedinhasTime: Number(totalMoedinhasTime._sum.rankingMoedinhas ?? 0),
         };
     }
     async getKpisVendedor(usuarioId) {

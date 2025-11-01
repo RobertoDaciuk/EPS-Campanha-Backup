@@ -20,12 +20,27 @@ let RankingService = RankingService_1 = class RankingService {
         this.logger = new common_1.Logger(RankingService_1.name);
     }
     async getPosicaoUsuario(usuarioId) {
-        const todosUsuarios = await this.prisma.usuario.findMany({
-            where: { papel: client_1.PapelUsuario.VENDEDOR },
-            select: { id: true },
-            orderBy: [{ rankingMoedinhas: 'desc' }, { criadoEm: 'asc' }],
-        });
-        const posicao = todosUsuarios.findIndex((u) => u.id === usuarioId) + 1;
+        const resultado = await this.prisma.$queryRaw(client_1.Prisma.sql `
+        WITH Ranking AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              ORDER BY "rankingMoedinhas" DESC, "criadoEm" ASC
+            ) as posicao
+          FROM
+            "usuarios"
+          WHERE
+            papel = ${client_1.PapelUsuario.VENDEDOR}::"PapelUsuario"
+            AND status = ${client_1.StatusUsuario.ATIVO}::"StatusUsuario"
+        )
+        SELECT
+          posicao
+        FROM
+          Ranking
+        WHERE
+          id = ${usuarioId}
+      `);
+        const posicao = resultado.length > 0 ? Number(resultado[0].posicao) : 0;
         return { posicao };
     }
     async getRankingEquipe(gerenteId) {
@@ -42,7 +57,10 @@ let RankingService = RankingService_1 = class RankingService {
         const take = porPagina;
         const [usuarios, total] = await this.prisma.$transaction([
             this.prisma.usuario.findMany({
-                where: { papel: client_1.PapelUsuario.VENDEDOR },
+                where: {
+                    papel: client_1.PapelUsuario.VENDEDOR,
+                    status: client_1.StatusUsuario.ATIVO,
+                },
                 select: {
                     id: true,
                     nome: true,
@@ -59,7 +77,12 @@ let RankingService = RankingService_1 = class RankingService {
                 skip,
                 take,
             }),
-            this.prisma.usuario.count({ where: { papel: client_1.PapelUsuario.VENDEDOR } }),
+            this.prisma.usuario.count({
+                where: {
+                    papel: client_1.PapelUsuario.VENDEDOR,
+                    status: client_1.StatusUsuario.ATIVO,
+                },
+            }),
         ]);
         const totalPaginas = Math.ceil(total / porPagina);
         const dadosComPosicao = usuarios.map((usuario, index) => ({

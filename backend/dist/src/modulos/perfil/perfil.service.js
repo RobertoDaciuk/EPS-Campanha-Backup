@@ -122,25 +122,28 @@ let PerfilService = class PerfilService {
             throw new common_1.UnauthorizedException('A senha atual está incorreta.');
         }
         const novaSenhaHash = await bcrypt.hash(dto.novaSenha, 10);
-        return this.prisma.usuario.update({
-            where: { id: usuarioId },
-            data: { senhaHash: novaSenhaHash },
-            select: {
-                id: true,
-                nome: true,
-                email: true,
-                cpf: true,
-                avatarUrl: true,
-                papel: true,
-                status: true,
-                nivel: true,
-                saldoMoedinhas: true,
-                rankingMoedinhas: true,
-                whatsapp: true,
-                mapeamentoPlanilhaSalvo: true,
-                criadoEm: true,
-                atualizadoEm: true,
-            },
+        return this.prisma.$transaction(async (tx) => {
+            const perfilAtualizado = await tx.usuario.update({
+                where: { id: usuarioId },
+                data: { senhaHash: novaSenhaHash },
+                select: {
+                    id: true,
+                    nome: true,
+                    email: true,
+                    cpf: true,
+                    avatarUrl: true,
+                    papel: true,
+                    status: true,
+                    nivel: true,
+                    saldoMoedinhas: true,
+                    rankingMoedinhas: true,
+                    whatsapp: true,
+                    mapeamentoPlanilhaSalvo: true,
+                    criadoEm: true,
+                    atualizadoEm: true,
+                },
+            });
+            return perfilAtualizado;
         });
     }
 };

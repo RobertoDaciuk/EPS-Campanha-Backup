@@ -10,85 +10,85 @@ export declare class EnvioVendaService {
     constructor(prisma: PrismaService, recompensaService: RecompensaService);
     criar(dto: CriarEnvioVendaDto, vendedorId: string): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
-        campanhaId: string;
-        requisitoId: string;
         numeroPedido: string;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         dataEnvio: Date;
         motivoRejeicao: string | null;
         infoConflito: string | null;
         numeroCartelaAtendida: number | null;
         dataValidacao: Date | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         vendedorId: string;
+        campanhaId: string;
+        requisitoId: string;
     }>;
     listar(usuario: {
         id: string;
         papel: string;
     }, filtros: ListarEnviosFiltroDto): Promise<({
+        vendedor: {
+            id: string;
+            email: string;
+            nome: string;
+        };
         requisito: {
             id: string;
             descricao: string;
         };
-        vendedor: {
-            id: string;
-            nome: string;
-            email: string;
-        };
     } & {
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
-        campanhaId: string;
-        requisitoId: string;
         numeroPedido: string;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         dataEnvio: Date;
         motivoRejeicao: string | null;
         infoConflito: string | null;
         numeroCartelaAtendida: number | null;
         dataValidacao: Date | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         vendedorId: string;
+        campanhaId: string;
+        requisitoId: string;
     })[]>;
     listarMinhasPorCampanha(vendedorId: string, campanhaId: string): Promise<{
         id: string;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
-        requisitoId: string;
         numeroPedido: string;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         dataEnvio: Date;
         motivoRejeicao: string;
         numeroCartelaAtendida: number;
         dataValidacao: Date;
+        requisitoId: string;
     }[]>;
     validarManual(envioId: string): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
-        campanhaId: string;
-        requisitoId: string;
         numeroPedido: string;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         dataEnvio: Date;
         motivoRejeicao: string | null;
         infoConflito: string | null;
         numeroCartelaAtendida: number | null;
         dataValidacao: Date | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         vendedorId: string;
+        campanhaId: string;
+        requisitoId: string;
     }>;
     rejeitarManual(envioId: string, dto: RejeitarManualDto): Promise<{
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusEnvioVenda;
-        campanhaId: string;
-        requisitoId: string;
         numeroPedido: string;
+        status: import(".prisma/client").$Enums.StatusEnvioVenda;
         dataEnvio: Date;
         motivoRejeicao: string | null;
         infoConflito: string | null;
         numeroCartelaAtendida: number | null;
         dataValidacao: Date | null;
+        criadoEm: Date;
+        atualizadoEm: Date;
         vendedorId: string;
+        campanhaId: string;
+        requisitoId: string;
     }>;
 }

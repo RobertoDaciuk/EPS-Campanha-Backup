@@ -34,9 +34,9 @@ export declare class CampanhaService {
                 }[];
             } & {
                 id: string;
+                descricao: string;
                 criadoEm: Date;
                 atualizadoEm: Date;
-                descricao: string;
                 quantidade: number;
                 tipoUnidade: import(".prisma/client").$Enums.TipoUnidade;
                 ordem: number;
@@ -44,26 +44,30 @@ export declare class CampanhaService {
             })[];
         } & {
             id: string;
+            descricao: string | null;
             criadoEm: Date;
             atualizadoEm: Date;
-            descricao: string | null;
             numeroCartela: number;
             campanhaId: string;
         })[];
     } & {
         id: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        status: string;
         titulo: string;
         descricao: string;
         dataInicio: Date;
         dataFim: Date;
         moedinhasPorCartela: number;
         pontosReaisPorCartela: Prisma.Decimal;
+        status: string;
         percentualGerente: Prisma.Decimal;
         paraTodasOticas: boolean;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizar(id: string, dto: AtualizarCampanhaDto): Promise<Campanha>;
-    remover(id: string): Promise<Campanha>;
+    remover(id: string, usuario: {
+        id: string;
+        papel: PapelUsuario;
+        opticaId?: string | null;
+    }): Promise<Campanha>;
 }

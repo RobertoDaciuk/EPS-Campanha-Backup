@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CriarCondicaoRequisitoDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 const client_1 = require("@prisma/client");
 class CriarCondicaoRequisitoDto {
 }
@@ -28,6 +29,13 @@ __decorate([
     __metadata("design:type", String)
 ], CriarCondicaoRequisitoDto.prototype, "operador", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed.replace(/<|>/g, '').replace(/&/g, '&amp;');
+        }
+        return value;
+    }),
     (0, class_validator_1.IsString)({ message: 'O valor deve ser uma string' }),
     (0, class_validator_1.IsNotEmpty)({ message: 'O valor não pode estar vazio' }),
     __metadata("design:type", String)

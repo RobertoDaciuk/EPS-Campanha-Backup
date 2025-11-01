@@ -1,13 +1,16 @@
 /**
  * ============================================================================
- * LOGIN PAGE (REFATORADO - Princípio 1)
+ * LOGIN PAGE (REFATORADO - Segurança/Princípio 5.4)
  * ============================================================================
  *
  * REFATORAÇÃO (Q.I. 170):
- * - CORRIGIDO: `handleSubmit` agora chama `login()` do `useAuth()` (Princípio 1).
- * - REMOVIDO: Manipulação manual do `localStorage` (responsabilidade do Provedor).
- * - REMOVIDO: Redirecionamento via `window.location.href` (anti-padrão).
- * - ATUALIZADO: Importação do `useAuth` de `ContextoAutenticacao` (Princípio 2).
+ * - CORRIGIDO (Princípio 5.4): Adicionada função _sanitizarMensagemErro.
+ * - MOTIVO: Previne XSS (Cross-Site Scripting) caso o backend retorne
+ * tags HTML ou scripts em mensagens de erro (Vulnerabilidade Frontend).
+ * - CORRIGIDO: `handleSubmit` agora chama `login()` do `useAuth()`.
+ * - REMOVIDO: Manipulação manual do `localStorage`.
+ * - REMOVIDO: Redirecionamento via `window.location.href`.
+ * - ATUALIZADO: Importação do `useAuth` de `ContextoAutenticacao`.
  *
  * @module LoginPage
  * ============================================================================
@@ -22,6 +25,22 @@ import { useAuth } from "@/contexts/ContextoAutenticacao"; // Corrigido (Princí
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
 import Link from "next/link";
+
+/**
+ * Função utilitária para sanitizar mensagens de erro.
+ * * Previne XSS básico removendo tags HTML de mensagens de erro
+ * retornadas pelo servidor.
+ * @param mensagem - Mensagem de erro potencial (pode ser string ou objeto).
+ * @returns Mensagem sanitizada como string.
+ */
+const _sanitizarMensagemErro = (mensagem: any): string => {
+  // Garante que é uma string
+  const strMensagem = String(mensagem);
+  
+  // Remove tags HTML básicas (ex: <script>, <b>, <a>)
+  // Nota: Não é um sanitizador completo como DOMPurify, mas mitiga a maioria dos vetores XSS via erro
+  return strMensagem.replace(/<[^>]*>/g, '').trim(); 
+};
 
 export default function LoginPage() {
   // ========================================
@@ -62,10 +81,10 @@ export default function LoginPage() {
       return false;
     }
 
-    // Nota: A validação de < 8 caracteres estava no frontend
-    // mas o DTO (registrar-usuario.dto.ts) exige 8.
-    // O login.dto.ts não exige mínimo. Vamos manter a validação
-    // do frontend por consistência.
+    // A validação de < 8 caracteres deve refletir o DTO de login
+    // O DTO de login (login.dto.ts) exige apenas que seja IsString e IsNotEmpty.
+    // O DTO de registro exige MinLength(8). Manter a validação de MinLength(8)
+    // aqui é uma boa prática de UX.
     if (password.length < 8) {
       toast.error("A senha deve ter pelo menos 8 caracteres");
       return false;
@@ -126,18 +145,14 @@ export default function LoginPage() {
       // ========================================
       // 4. CHAMAR O CONTEXTO (FLUXO CORRETO)
       // ========================================
-      //
-      // A função `login` do ProvedorAutenticacao é agora
-      // a fonte única da verdade para atualizar o estado,
-      // persistir dados e redirecionar.
-      //
-      login(token, usuario, rememberMe);
+      
+      login(token, usuario, rememberMe); //
 
       // [REMOVIDO] Armazenamento manual no localStorage
       // [REMOVIDO] Redirecionamento manual via window.location.href
     } catch (error: any) {
       // ========================================
-      // TRATAMENTO DE ERROS
+      // TRATAMENTO DE ERROS (CORREÇÃO DE SEGURANÇA - Princípio 5.4)
       // ========================================
 
       console.error("❌ Erro no login:", error);
@@ -145,16 +160,17 @@ export default function LoginPage() {
       let errorMessage = "Erro ao realizar login. Tente novamente.";
 
       if (error.response?.data?.message) {
-        // Mensagens do backend (Ex: "Credenciais inválidas.")
-        errorMessage = error.response.data.message;
+        // CORRIGIDO: Sanitizar a mensagem do backend antes de usar
+        errorMessage = _sanitizarMensagemErro(error.response.data.message); 
       } else if (error.message) {
-        errorMessage = error.message;
+        errorMessage = _sanitizarMensagemErro(error.message);
       }
 
       // Tratamento específico de status HTTP
       if (error.response?.status === 401) {
-        // 401 (Unauthorized) - Mensagem genérica do backend
-        errorMessage = error.response.data.message || "Email ou senha incorretos";
+        // Usa a mensagem sanitizada do backend (Ex: "Credenciais inválidas.")
+        // Se a sanitização falhar, a mensagem padrão será usada.
+        errorMessage = errorMessage || "Email ou senha incorretos"; 
       } else if (error.response?.status === 429) {
         errorMessage = "Muitas tentativas. Aguarde alguns minutos.";
       } else if (!error.response) {
@@ -192,10 +208,8 @@ export default function LoginPage() {
         className="relative"
       >
         {/*
-          NOTA: O 'glass' e 'shadow-glass-lg' não são padrões Tailwind.
-          Assumindo que `globals.css` define:
-          .glass { background: bg-card/70; backdrop-filter: blur(12px); }
-          Vou manter `bg-card/70 backdrop-blur-lg` conforme Princípio 4.
+          NOTA: Usando as classes `bg-card/70 backdrop-blur-lg rounded-3xl`
+          conforme o Princípio 4 (Design Magnífico - Glassmorphism e Bordas).
         */}
         <div
           className="bg-card/70 backdrop-blur-lg rounded-3xl p-6 md:p-9 

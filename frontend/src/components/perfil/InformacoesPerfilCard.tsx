@@ -5,37 +5,38 @@
  *
  * Propósito:
  * Formulário para visualização e atualização dos dados cadastrais
- * do usuário (nome, email, whatsapp).
+ * do usuário (nome, whatsapp).
  *
- * CORREÇÃO (Erros TS2353 e TS2345):
- * - Removida a propriedade `enableReinitialize` (obsoleta).
- * - Trocada a propriedade `values` por `defaultValues` no useForm.
- * - Adicionado `useEffect` para chamar `reset(dadosPerfil)` quando
- * os dados do SWR são carregados. Este é o padrão correto para
- * popular formulários com dados assíncronos no react-hook-form.
+ * CORREÇÃO (Erro 400 Bad Request):
+ * - Falha 1: O campo 'email' foi removido do schema Zod e marcado
+ * como `disabled` no input. O DTO do backend
+ * não permite a alteração do email.
+ * - Falha 2: A regex de validação do 'whatsapp' foi corrigida
+ * para `/^\d{12,13}$/` (12 ou 13 dígitos), alinhando-se
+ * ao DTO do backend.
  *
  * @module Perfil
  * ============================================================================
  */
 "use client";
 
-import { useState, useEffect } from "react"; // Importado useEffect
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/ContextoAutenticacao";
 import useSWR, { mutate } from "swr";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
-import { useForm, SubmitHandler } from "react-hook-form"; // Importado SubmitHandler
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { User, Mail, Phone, Loader2 } from "lucide-react";
-import { KpiCard } from "../dashboard/KpiCard"; // Reutilizando o KpiCard como skeleton
 
 /**
  * Schema de validação (Zod) para o formulário de perfil.
+ * CORRIGIDO: Removido 'email' e ajustada regex 'whatsapp'.
  */
 const perfilSchema = z.object({
   nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  email: z.string().email("Formato de email inválido."),
+  // CORRIGIDO: O email não é enviado para atualização.
   whatsapp: z
     .string()
     .transform((val) => (val === null || val === "" ? undefined : val))
@@ -43,17 +44,28 @@ const perfilSchema = z.object({
     .refine(
       (val) =>
         val === undefined ||
-        /^\d{10,11}$/.test(val.replace(/\D/g, "")),
-      "O WhatsApp deve ter 10 ou 11 dígitos (DDD + número).",
+        // CORRIGIDO: Regex para 12 ou 13 dígitos (DDD + Numero)
+        /^\d{11,12}$/.test(val.replace(/\D/g, "")),
+      "WhatsApp deve conter 12 ou 13 dígitos (Ex: 41987654321).",
     ),
 });
 
+// Define o tipo dos dados do formulário baseado no schema
 type PerfilFormData = z.infer<typeof perfilSchema>;
+
+/**
+ * Interface para os dados completos do SWR (incluindo email)
+ */
+interface DadosPerfilSWR {
+  nome: string;
+  email: string;
+  whatsapp?: string;
+}
 
 /**
  * Fetcher SWR para buscar dados do perfil.
  */
-const fetcherPerfil = async (url: string) => {
+const fetcherPerfil = async (url: string): Promise<DadosPerfilSWR> => {
   const res = await api.get(url);
   return res.data;
 };
@@ -64,7 +76,6 @@ const fetcherPerfil = async (url: string) => {
 export function InformacoesPerfilCard() {
   const { usuario } = useAuth(); // Para dados iniciais e fallback
 
-  // Estado de carregamento do submit
   const [estaSalvando, setEstaSalvando] = useState(false);
 
   // Busca de dados com SWR
@@ -72,7 +83,7 @@ export function InformacoesPerfilCard() {
     "/perfil/meu",
     fetcherPerfil,
     {
-      fallbackData: usuario,
+      fallbackData: usuario as DadosPerfilSWR | undefined,
       revalidateOnFocus: true,
     },
   );
@@ -83,50 +94,48 @@ export function InformacoesPerfilCard() {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<PerfilFormData>({ // O Genérico <PerfilFormData> está correto
+    // Usamos getValues para ler o email (que não faz parte do schema)
+    getValues,
+  } = useForm<PerfilFormData>({
     resolver: zodResolver(perfilSchema),
-    // CORRIGIDO: Usar defaultValues para estado inicial
     defaultValues: {
       nome: "",
-      email: "",
       whatsapp: "",
     },
-    // CORRIGIDO: Removidas as propriedades 'values' e 'enableReinitialize'
   });
 
-  // CORRIGIDO: Usar useEffect para popular o formulário quando os dados do SWR chegam
+  // Efeito para popular o formulário quando os dados do SWR chegam
   useEffect(() => {
     if (dadosPerfil) {
-      reset(dadosPerfil);
+      // Reseta o formulário apenas com os dados do schema
+      reset({
+        nome: dadosPerfil.nome,
+        whatsapp: dadosPerfil.whatsapp ?? "",
+      });
     }
   }, [dadosPerfil, reset]);
 
   /**
    * Handler para submissão do formulário.
-   * CORRIGIDO: Adicionada tipagem explícita a `onSubmit` para
-   * garantir a correspondência com `handleSubmit`.
    */
   const onSubmit: SubmitHandler<PerfilFormData> = async (dados) => {
     setEstaSalvando(true);
     toast.loading("Salvando alterações...", { id: "perfil-toast" });
 
     try {
-      // Envia dados para o endpoint PATCH
+      // 'dados' agora contém APENAS 'nome' e 'whatsapp' (definido pelo schema)
       const response = await api.patch("/perfil/meu", dados);
 
-      // Atualiza o cache do SWR localmente (mutação otimista)
+      // Atualiza o cache do SWR localmente
       mutate("/perfil/meu", response.data, false);
 
-      // TODO: Atualizar o AuthContext se o nome mudou.
-
       toast.success("Perfil atualizado com sucesso!", { id: "perfil-toast" });
-      reset(response.data); // Reseta o formulário com os novos dados
+      reset(response.data);
     } catch (erro: any) {
       console.error("Erro ao atualizar perfil:", erro);
       const msgErro =
         erro.response?.data?.message ?? "Falha ao atualizar perfil.";
 
-      // Trata mensagens de erro de validação (array)
       if (Array.isArray(msgErro)) {
         toast.error(msgErro.join(", "), { id: "perfil-toast" });
       } else {
@@ -137,17 +146,18 @@ export function InformacoesPerfilCard() {
     }
   };
 
-  // Estado de Carregamento (Princípio 4)
+  // Estado de Carregamento
   if (erroPerfil) {
-     return (
-       <div className="bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl">
-         <h4 className="font-semibold">Erro ao carregar perfil</h4>
-         <p className="text-sm">{erroPerfil.message}</p>
-       </div>
-     );
+    return (
+      <div className="bg-destructive/10 border border-destructive/30 text-destructive p-4 rounded-xl">
+        <h4 className="font-semibold">Erro ao carregar perfil</h4>
+        <p className="text-sm">{erroPerfil.message}</p>
+      </div>
+    );
   }
-  
+
   if (!dadosPerfil) {
+    // Skeleton
     return (
       <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6 shadow-lg shadow-black/5 animate-pulse">
         <div className="h-6 bg-muted-foreground/20 rounded-md w-1/3 mb-4"></div>
@@ -163,7 +173,7 @@ export function InformacoesPerfilCard() {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)} // Esta chamada agora é válida
+      onSubmit={handleSubmit(onSubmit)}
       className="bg-card/70 backdrop-blur-lg 
                  border border-border/20 rounded-2xl 
                  shadow-lg shadow-black/5"
@@ -174,7 +184,7 @@ export function InformacoesPerfilCard() {
           Informações Pessoais
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Atualize seus dados cadastrais. O email é usado para login.
+          Atualize seus dados cadastrais. O email não pode ser alterado.
         </p>
       </div>
 
@@ -205,7 +215,7 @@ export function InformacoesPerfilCard() {
           )}
         </div>
 
-        {/* Campo Email */}
+        {/* Campo Email (Somente Leitura) */}
         <div>
           <label
             htmlFor="email"
@@ -218,16 +228,12 @@ export function InformacoesPerfilCard() {
             <input
               id="email"
               type="email"
-              {...register("email")}
-              disabled={estaSalvando}
-              className={`input-glass pl-10 ${errors.email ? "border-destructive" : ""}`}
+              // CORRIGIDO: Valor lido dos dados do SWR, campo desabilitado
+              value={dadosPerfil.email}
+              disabled={true}
+              className={`input-glass pl-10 bg-muted/50 cursor-not-allowed`}
             />
           </div>
-          {errors.email && (
-            <p className="text-xs text-destructive mt-1">
-              {errors.email.message}
-            </p>
-          )}
         </div>
 
         {/* Campo WhatsApp */}
@@ -243,7 +249,7 @@ export function InformacoesPerfilCard() {
             <input
               id="whatsapp"
               type="tel"
-              placeholder="(DD) 9XXXX-XXXX"
+              placeholder="41987654321."
               {...register("whatsapp")}
               disabled={estaSalvando}
               className={`input-glass pl-10 ${errors.whatsapp ? "border-destructive" : ""}`}

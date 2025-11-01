@@ -1,3 +1,25 @@
+/**
+ * ============================================================================
+ * CAMPANHA DETALHES PAGE (CORRIGIDO - Lógica Crítica de Spillover)
+ * ============================================================================
+ *
+ * Propósito:
+ * Página de Detalhes da Campanha com Tabs de Cartelas
+ *
+ * CORREÇÃO (Q.I. 170 - Lógica de Spillover):
+ * - REESCRITO: O `getEnviosValidadosContagem` agora conta TODOS os envios
+ * VALIDADO para o requisito lógico (agrupado por ORDEM), ignorando o campo
+ * `numeroCartelaAtendida`.
+ * - MOTIVO: O progresso (COMPLETO) é determinado pelo total de envios da ORDEM,
+ * e não por quantos caíram na cartela ATUAL. O `numeroCartelaAtendida` é apenas
+ * uma marcação para o spillover.
+ *
+ * CORREÇÃO (Estrutura/Importação):
+ * - Corrigida a importação do Contexto de Autenticação.
+ *
+ * @module Campanhas
+ * ============================================================================
+ */
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -7,7 +29,8 @@ import { Loader2, AlertCircle, Trophy, Target, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import RequisitoCard from "@/components/campanhas/RequisitoCard";
 import TabsCampanha from "@/components/campanhas/TabsCampanha";
-import { useAuth } from "@/contexts/AuthContext";
+// CORRIGIDO: Usar alias e nome de contexto correto
+import { useAuth } from "@/contexts/ContextoAutenticacao";
 
 /**
  * ============================================================================
@@ -17,7 +40,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Tipo para o status calculado de um requisito em uma cartela específica
- * (Sprint 16.5 - Tarefa 38.5)
  */
 type StatusRequisito = "ATIVO" | "COMPLETO" | "BLOQUEADO";
 
@@ -34,7 +56,6 @@ interface Condicao {
 
 /**
  * Interface para Requisito de uma Cartela
- * (ATUALIZADO Sprint 16.5: Agora inclui regraCartela)
  */
 interface Requisito {
   id: string;
@@ -60,7 +81,6 @@ interface Cartela {
 
 /**
  * Interface para Campanha Completa
- * (CORRIGIDO Sprint 16.5: Campo correto é "titulo", não "nome")
  */
 interface Campanha {
   id: string;
@@ -74,7 +94,6 @@ interface Campanha {
 
 /**
  * Interface para Envio de Venda (Histórico do Vendedor)
- * (ATUALIZADO Sprint 16.5: Novo status CONFLITO_MANUAL)
  */
 interface EnvioVenda {
   id: string;
@@ -91,29 +110,6 @@ interface EnvioVenda {
  * ============================================================================
  * COMPONENTE PRINCIPAL: CampanhaDetalhesPage
  * ============================================================================
- *
- * Página de Detalhes da Campanha com Tabs de Cartelas
- *
- * Funcionalidades:
- * - Busca dados completos da campanha (com cartelas e requisitos)
- * - Busca envios do vendedor autenticado para esta campanha
- * - Sistema de Tabs para navegar entre cartelas
- * - Renderização de RequisitoCard para cada requisito da cartela ativa
- * - Refetch de envios após submissão bem-sucedida
- * - Estados de loading e erro
- * - Proteção de autenticação (redirect se não autenticado)
- * - Cálculo de Status (ATIVO, COMPLETO, BLOQUEADO) por requisito/cartela (Sprint 16.5 - Tarefa 38.5)
- *
- * Refatorações Implementadas (Sprint 16.2):
- * - Busca de meusEnvios via GET /api/campanhas/:id/minhas
- * - Callback de refetch após submissão
- * - Props de meusEnvios passadas para RequisitoCard
- * - Cálculo de progresso delegado ao RequisitoCard
- *
- * Refatorações Implementadas (Sprint 16.5 - Tarefa 38.5):
- * - Cálculo de Status (ATIVO, COMPLETO, BLOQUEADO) usando useMemo
- * - Lógica de Spillover/Bloqueio entre cartelas
- * - Status passado como prop para RequisitoCard
  */
 export default function CampanhaDetalhesPage() {
   const params = useParams();
@@ -121,9 +117,9 @@ export default function CampanhaDetalhesPage() {
   const campanhaId = params.id as string;
 
   // ========================================
-  // CONTEXTO: Autenticação (Sprint 16.5 - Correção 401)
+  // CONTEXTO: Autenticação
   // ========================================
-  const { estaAutenticado, isLoading: isAuthLoading } = useAuth();
+  const { estaAutenticado, carregando: isAuthLoading } = useAuth(); // Corrigido 'carregando'
 
   // ========================================
   // ESTADO: Dados e Loading
@@ -134,20 +130,8 @@ export default function CampanhaDetalhesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // ========================================
-  // FUNÇÃO: Buscar Dados da Campanha (Refatorado - Sprint 16.5)
+  // FUNÇÃO: Buscar Dados da Campanha
   // ========================================
-  /**
-   * Busca dados completos da campanha e envios do vendedor autenticado.
-   *
-   * Fluxo (ATUALIZADO Sprint 16.5 - Correção 401):
-   * 1. Verifica se o usuário está autenticado (segurança extra)
-   * 2. GET /api/campanhas/:id (dados da campanha)
-   * 3. GET /api/envios-venda/minhas?campanhaId=:id (envios do vendedor autenticado)
-   * 4. Atualiza estados (campanha, meusEnvios, loading, error)
-   * 5. Redireciona para login se não autenticado (401)
-   *
-   * IMPORTANTE: Agora usa useCallback e verifica estaAutenticado antes de fazer chamadas API
-   */
   const buscarDadosCampanha = useCallback(async () => {
     // GUARD: Não faz chamadas se não estiver autenticado
     if (!estaAutenticado) {
@@ -195,16 +179,8 @@ export default function CampanhaDetalhesPage() {
   }, [estaAutenticado, campanhaId, router]);
 
   // ========================================
-  // EFEITO: Buscar Dados ao Montar (Refatorado - Sprint 16.5)
+  // EFEITO: Buscar Dados ao Montar
   // ========================================
-  /**
-   * Dispara busca de dados APENAS quando:
-   * 1. AuthProvider terminou de carregar (!isAuthLoading)
-   * 2. Usuário está autenticado (estaAutenticado)
-   * 3. campanhaId está disponível
-   *
-   * CORREÇÃO 401: Previne chamadas API antes da autenticação estar 100% pronta
-   */
   useEffect(() => {
     // Aguarda AuthProvider terminar de carregar
     if (isAuthLoading) {
@@ -230,31 +206,18 @@ export default function CampanhaDetalhesPage() {
   // ========================================
   // CALLBACK: Refetch Após Submissão
   // ========================================
-  /**
-   * Callback passado para RequisitoCard.
-   * Dispara refetch dos envios após submissão bem-sucedida.
-   */
   const handleSubmissaoSucesso = () => {
     buscarDadosCampanha();
   };
 
   // ========================================
-  // MEMO: Mapa de Requisitos Relacionados por Ordem (CORREÇÃO SPILLOVER)
+  // MEMO: Mapa de Requisitos Relacionados por Ordem (CRÍTICO SPILLOVER)
   // ========================================
   /**
-   * PROBLEMA IDENTIFICADO:
-   * - Requisitos de cartelas diferentes têm IDs DIFERENTES (uuid-1a vs uuid-2a)
-   * - Envios apontam para o requisitoId da PRIMEIRA cartela (uuid-1a)
-   * - Filtro por requisitoId não encontra spillover na Cartela 2
-   *
-   * SOLUÇÃO:
-   * - Criar mapa que agrupa todos os IDs de requisitos pela mesma ordem
-   * - Exemplo: Requisito "Lentes" (ordem 1) tem IDs [uuid-1a, uuid-2a, uuid-3a]
-   * - Filtrar envios usando QUALQUER desses IDs
-   *
-   * Estrutura do Mapa:
-   * - Chave: `ordem-${ordem}`
-   * - Valor: Array de IDs de requisitos com essa ordem
+   * Cria mapa que agrupa todos os IDs de requisitos pela mesma ordem.
+   * Chave: `ordem` (number)
+   * Valor: Array de IDs de requisitos com essa ordem
+   * (Usado para contar o progresso total e filtrar envios).
    */
   const mapaRequisitosRelacionados = useMemo(() => {
     if (!campanha) return new Map<number, string[]>();
@@ -277,23 +240,11 @@ export default function CampanhaDetalhesPage() {
   /**
    * Calcula o status preciso de cada instância de requisito em cada cartela.
    *
-   * Lógica (Sprint 16.5 - Tarefa 38.5):
-   * 1. Loop 1 (Completos): Marca requisitos com envios VALIDADO suficientes como COMPLETO
-   * 2. Loop 2 (Bloqueados): Marca requisitos de cartelas > 1 como BLOQUEADO se o requisito anterior não estiver COMPLETO
-   * 3. Status implícito: Qualquer requisito não marcado é considerado ATIVO
-   *
    * Estrutura do Mapa:
    * - Chave: `${requisitoId}-${numeroCartela}`
    * - Valor: 'ATIVO' | 'COMPLETO' | 'BLOQUEADO'
-   *
-   * CORREÇÃO SPILLOVER:
-   * - Usa mapaRequisitosRelacionados para encontrar todos os IDs relacionados
-   * - Conta envios VALIDADO de QUALQUER requisito com a mesma ordem
-   *
-   * Recalcula quando meusEnvios ou campanha mudam.
    */
   const mapaStatusRequisitos = useMemo(() => {
-    // Guard: Se não houver dados, retorna mapa vazio
     if (!campanha || !meusEnvios) {
       return new Map<string, StatusRequisito>();
     }
@@ -301,51 +252,39 @@ export default function CampanhaDetalhesPage() {
     const mapaStatus = new Map<string, StatusRequisito>();
 
     // -----------------------------------------------------------------------
-    // HELPER: Contagem de Envios Validados para Requisito/Cartela (CORRIGIDO)
+    // HELPER: Contagem de Envios Validados Totais por Ordem (CORREÇÃO CRÍTICA)
     // -----------------------------------------------------------------------
     /**
-     * Retorna a contagem de envios VALIDADO para um requisito específico
-     * em uma cartela específica.
+     * Retorna a contagem de envios VALIDADO para um requisito lógico (ORDEM),
+     * somando o progresso de TODAS as cartelas.
      *
-     * CORREÇÃO SPILLOVER:
-     * - Busca TODOS os IDs de requisitos com a mesma ordem (uuid-1a, uuid-2a, uuid-3a)
-     * - Conta envios que apontam para QUALQUER desses IDs
-     * - Filtra por numeroCartelaAtendida para a cartela específica
+     * CORREÇÃO SPILLOVER (Princípio 1):
+     * - Conta envios VALIDADO de QUALQUER requisito com a mesma ordem (`idsRelacionados`).
+     * - IGNORA `numeroCartelaAtendida`, pois a contagem total deve ser absoluta
+     * para determinar o status COMPLETO do requisito lógico.
      *
      * @param requisito - Objeto Requisito completo (com ordem)
-     * @param numCartela - Número da cartela
-     * @returns Contagem de envios VALIDADO
+     * @returns Contagem de envios VALIDADO total
      */
-    const getEnviosValidadosContagem = (
-      requisito: Requisito,
-      numCartela: number
-    ): number => {
+    const getEnviosValidadosContagemTotal = (requisito: Requisito): number => {
       // Busca todos os IDs de requisitos relacionados (mesma ordem)
       const idsRelacionados = mapaRequisitosRelacionados.get(requisito.ordem) || [requisito.id];
 
       return meusEnvios.filter(
         (envio) =>
           envio.status === "VALIDADO" &&
-          idsRelacionados.includes(envio.requisitoId) && // ✅ CORRIGIDO: Busca em TODOS os IDs
-          envio.numeroCartelaAtendida === numCartela
+          idsRelacionados.includes(envio.requisitoId) // Filtra por ID de requisito (que carrega a ordem)
       ).length;
     };
 
     // -----------------------------------------------------------------------
     // LOOP 1: Calcular Requisitos COMPLETOS
     // -----------------------------------------------------------------------
-    /**
-     * Itera por todas as cartelas e requisitos.
-     * Se um requisito atingiu a quantidade necessária de validados,
-     * marca como COMPLETO no mapa.
-     */
     for (const cartela of campanha.cartelas) {
       for (const requisito of cartela.requisitos) {
-        const countValidados = getEnviosValidadosContagem(
-          requisito, // ✅ CORRIGIDO: Passa objeto completo
-          cartela.numeroCartela
-        );
-        const isCompleto = countValidados >= requisito.quantidade;
+        // Usa a contagem TOTAL para determinar se o requisito lógico está COMPLETO
+        const countValidadosTotal = getEnviosValidadosContagemTotal(requisito);
+        const isCompleto = countValidadosTotal >= requisito.quantidade;
 
         if (isCompleto) {
           mapaStatus.set(
@@ -360,20 +299,12 @@ export default function CampanhaDetalhesPage() {
     // LOOP 2: Calcular Requisitos BLOQUEADOS (Spillover)
     // -----------------------------------------------------------------------
     /**
-     * Itera por cartelas > 1 (cartelas subsequentes).
-     * Para cada requisito que NÃO está COMPLETO,
-     * verifica se o requisito equivalente na cartela anterior está COMPLETO.
-     * Se não estiver, marca como BLOQUEADO.
-     *
      * Lógica de Bloqueio:
-     * - Cartela 2 Req A é bloqueado se Cartela 1 Req A não estiver COMPLETO
-     * - Cartela 3 Req B é bloqueado se Cartela 2 Req B não estiver COMPLETO
+     * - Cartela N Req A é bloqueado se Cartela N-1 Req A não estiver COMPLETO
      */
     for (const cartela of campanha.cartelas) {
-      // Pula cartela 1 (não pode ser bloqueada)
       if (cartela.numeroCartela <= 1) continue;
 
-      // Buscar cartela anterior
       const cartelaAnterior = campanha.cartelas.find(
         (c) => c.numeroCartela === cartela.numeroCartela - 1
       );
@@ -385,8 +316,7 @@ export default function CampanhaDetalhesPage() {
         const chaveAtual = `${requisito.id}-${cartela.numeroCartela}`;
         if (mapaStatus.get(chaveAtual) === "COMPLETO") continue;
 
-        // Encontrar requisito equivalente na cartela anterior
-        // Assumindo que requisitos mantêm a mesma ordem entre cartelas
+        // Encontrar requisito equivalente na cartela anterior pela ORDEM
         const requisitoAnterior = cartelaAnterior.requisitos.find(
           (r) => r.ordem === requisito.ordem
         );
@@ -403,23 +333,16 @@ export default function CampanhaDetalhesPage() {
         }
       }
     }
-
-    // -----------------------------------------------------------------------
-    // STATUS IMPLÍCITO: Qualquer requisito não marcado é ATIVO
-    // -----------------------------------------------------------------------
-    // Não é necessário adicionar explicitamente, pois o getter retornará 'ATIVO' como default
-
+    // Status implícito: Qualquer requisito não marcado é ATIVO
     return mapaStatus;
   }, [meusEnvios, campanha]);
 
   // ========================================
-  // RENDERIZAÇÃO: Estados de Loading e Erro (Refatorado - Sprint 16.5)
+  // RENDERIZAÇÃO: Estados de Loading e Erro
   // ========================================
 
   /**
-   * Loading State: Mostra spinner enquanto:
-   * - AuthProvider está carregando (isAuthLoading)
-   * - OU dados da campanha estão sendo buscados (isLoadingData)
+   * Loading State
    */
   if (isAuthLoading || isLoadingData) {
     return (
@@ -463,8 +386,7 @@ export default function CampanhaDetalhesPage() {
   return (
     <div className="container mx-auto max-w-7xl p-6">
       {/* ========================================
-          HEADER: Botão Voltar, Título e Descrição da Campanha
-          (Atualizado Sprint 16.5 - Correção de Bug: Botão Voltar Adicionado)
+          HEADER: Título e Descrição da Campanha
           ======================================== */}
       <div className="mb-8">
         {/* Botão Voltar */}
@@ -499,7 +421,7 @@ export default function CampanhaDetalhesPage() {
       )}
 
       {/* ========================================
-          TABS: Navegação entre Cartelas (CORRIGIDO)
+          TABS: Navegação entre Cartelas
           ======================================== */}
       {campanha.cartelas.length > 0 && (
         <TabsCampanha cartelas={campanha.cartelas}>

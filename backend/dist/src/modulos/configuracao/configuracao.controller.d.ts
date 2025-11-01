@@ -7,9 +7,9 @@ export declare class ConfiguracaoController {
         id: string;
         criadoEm: Date;
         atualizadoEm: Date;
-        descricao: string;
-        valor: string;
         chave: string;
+        valor: string;
+        descricao: string;
     }[]>;
     atualizarEmLote(dto: AtualizarConfiguracoesDto): Promise<any[]>;
 }

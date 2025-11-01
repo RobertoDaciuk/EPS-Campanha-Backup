@@ -1,15 +1,14 @@
 /**
  * ============================================================================
- * PROVEDOR DE AUTENTICAÇÃO (Corrigido)
+ * PROVEDOR DE AUTENTICAÇÃO (Refatorado - DRY)
  * ============================================================================
- *
- * REFATORAÇÃO (Q.I. 170):
- * - CORRIGIDO: `router.push("/dashboard")` alterado para `router.push("/")`.
- * - MOTIVO: A estrutura de arquivos `(dashboard)/page.tsx` indica um
- * Grupo de Rota do Next.js, que serve a página na raiz (`/`),
- * não em `/dashboard`.
- *
- * @module ProvedorAutenticacao
+ * * Propósito:
+ * Gerencia o estado de autenticação global da aplicação (token, usuário).
+ * Lida com a persistência de dados no localStorage e a proteção de rotas.
+ * * REFATORAÇÃO (Q.I. 170):
+ * - NOVO: Importa TOKEN_KEY, USUARIO_KEY e ROTAS_PUBLICAS de constantes.ts (Princípio 2 / DRY).
+ * - CORRIGIDO: router.push("/dashboard") alterado para router.push("/").
+ * * @module ProvedorAutenticacao
  * ============================================================================
  */
 "use client";
@@ -18,6 +17,7 @@ import { ReactNode, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ContextoAutenticacao, Usuario } from "./ContextoAutenticacao";
 import api from "@/lib/axios";
+import { TOKEN_KEY, USUARIO_KEY, ROTAS_PUBLICAS } from "@/lib/constantes"; // Importação Corrigida (Princípio 2)
 
 /**
  * Props do ProvedorAutenticacao.
@@ -25,17 +25,6 @@ import api from "@/lib/axios";
 interface ProvedorAutenticacaoProps {
   children: ReactNode;
 }
-
-/**
- * Chaves para armazenar dados no localStorage.
- */
-const TOKEN_KEY = "@EPSCampanhas:token";
-const USUARIO_KEY = "@EPSCampanhas:usuario";
-
-/**
- * Rotas públicas que não requerem autenticação.
- */
-const ROTAS_PUBLICAS = ["/login", "/registro", "/recuperar-senha"];
 
 /**
  * Provedor de Autenticação (Refatorado).
@@ -57,9 +46,8 @@ export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
   // ========================================
 
   /**
-   * Função de login (CORRIGIDA).
-   *
-   * @param novoToken - Token JWT retornado pelo backend
+   * Função de login.
+   * * @param novoToken - Token JWT retornado pelo backend
    * @param dadosUsuario - Dados do usuário retornados pelo backend
    * @param lembrar - Flag "Lembrar-me" vinda da página de login
    */
@@ -75,8 +63,7 @@ export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
       // Injetar token no header do Axios
       api.defaults.headers.common["Authorization"] = `Bearer ${novoToken}`;
 
-      // CORRIGIDO: Redirecionar para a rota raiz "/"
-      // O (dashboard)/page.tsx é servido em "/"
+      // Redirecionar para a rota raiz "/"
       router.push("/");
     },
     [router],
@@ -149,7 +136,7 @@ export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
 
     // Se autenticado e está na rota de login, redirecionar para a raiz
     if (token && pathname === "/login") {
-      // CORRIGIDO: Redirecionar para a rota raiz "/"
+      // Redirecionar para a rota raiz "/"
       router.push("/");
     }
   }, [pathname, carregando, token, router]);

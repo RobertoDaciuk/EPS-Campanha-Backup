@@ -5,9 +5,9 @@ export declare class RelatorioFinanceiroController {
     constructor(relatorioService: RelatorioFinanceiroService);
     listar(filtros: ListarRelatoriosFiltroDto): Promise<({
         usuario: {
-            id: string;
             nome: string;
             email: string;
+            id: string;
         };
         campanha: {
             id: string;
@@ -15,22 +15,22 @@ export declare class RelatorioFinanceiroController {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
-        campanhaId: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         tipo: string;
         usuarioId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
+        campanhaId: string;
     })[]>;
     buscarPorId(id: string): Promise<{
         usuario: {
-            id: string;
             nome: string;
             email: string;
+            id: string;
         };
         campanha: {
             id: string;
@@ -38,28 +38,28 @@ export declare class RelatorioFinanceiroController {
         };
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
-        campanhaId: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         tipo: string;
         usuarioId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
+        campanhaId: string;
     }>;
     marcarComoPago(id: string): Promise<{
         id: string;
+        status: import(".prisma/client").$Enums.StatusPagamento;
         criadoEm: Date;
         atualizadoEm: Date;
-        status: import(".prisma/client").$Enums.StatusPagamento;
-        campanhaId: string;
-        valor: import("@prisma/client/runtime/library").Decimal;
         tipo: string;
         usuarioId: string;
+        valor: import("@prisma/client/runtime/library").Decimal;
         dataGerado: Date;
         dataPagamento: Date | null;
         observacoes: string | null;
+        campanhaId: string;
     }>;
 }

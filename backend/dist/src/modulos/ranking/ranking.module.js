@@ -10,13 +10,19 @@ exports.RankingModule = void 0;
 const common_1 = require("@nestjs/common");
 const ranking_service_1 = require("./ranking.service");
 const ranking_controller_1 = require("./ranking.controller");
+const gerente_matriz_guard_1 = require("./guards/gerente-matriz.guard");
+const prisma_service_1 = require("../../prisma/prisma.service");
 let RankingModule = class RankingModule {
 };
 exports.RankingModule = RankingModule;
 exports.RankingModule = RankingModule = __decorate([
     (0, common_1.Module)({
         controllers: [ranking_controller_1.RankingController],
-        providers: [ranking_service_1.RankingService],
+        providers: [
+            ranking_service_1.RankingService,
+            gerente_matriz_guard_1.GerenteMatrizGuard,
+            prisma_service_1.PrismaService,
+        ],
         exports: [ranking_service_1.RankingService],
     })
 ], RankingModule);

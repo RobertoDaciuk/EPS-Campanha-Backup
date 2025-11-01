@@ -1,13 +1,15 @@
 /**
  * ============================================================================
- * ENVIO VENDA SERVICE
+ * ENVIO VENDA SERVICE (REFATORADO - RBAC Polimórfico Otimizado)
  * ============================================================================
- * 
- * Serviço robusto para gerenciamento de envios de venda.
+ * * Serviço robusto para gerenciamento de envios de venda.
  * Implementa lógica polimórfica de acesso (RBAC) e rotas de intervenção manual do Admin.
  * Integração transacional com o motor de recompensa via RecompensaService.
- * 
- * @module EnvioVendaModule
+ * * REFATORAÇÃO (Q.I. 170 - Performance/Princípio 5.5):
+ * - O método `listar` foi otimizado para o papel GERENTE, usando filtros
+ * aninhados (`vendedor: { gerenteId: usuario.id }`) em vez de realizar uma
+ * consulta separada para buscar IDs de equipe.
+ * * @module EnvioVendaModule
  * ============================================================================
  */
 
@@ -40,26 +42,7 @@ export class EnvioVendaService {
    * ============================================================================
    * CRIAR ENVIO (Vendedor submete número de pedido)
    * ============================================================================
-   * 
-   * Método principal de submissão de vendas pelos vendedores.
-   * Cria um registro EnvioVenda com status EM_ANALISE (validação assíncrona).
-   * 
-   * Validações Implementadas:
-   * 1. **DUPLICATA (Sprint 16.3)**: Verifica se o mesmo vendedor já submeteu
-   *    o mesmo número de pedido para a mesma campanha. Previne submissões
-   *    duplicadas tanto intencionais quanto acidentais (double-click, etc.).
-   * 
-   * Regra de Negócio (Data Tenancy):
-   * - Automaticamente associa vendedorId = req.user.id ao envio.
-   * - A unicidade é por VENDEDOR (vendedores diferentes podem submeter
-   *   o mesmo número de pedido em campanhas diferentes).
-   * 
-   * Fluxo de Validação:
-   * 1. Verifica duplicata (numeroPedido + vendedorId + campanhaId)
-   * 2. Se duplicata encontrada → lança BadRequestException
-   * 3. Se não houver duplicata → cria envio com status EM_ANALISE
-   * 
-   * @param dto Dados do envio (numeroPedido, campanhaId, requisitoId)
+   * * @param dto Dados do envio (numeroPedido, campanhaId, requisitoId)
    * @param vendedorId ID do vendedor autenticado (extraído do token JWT)
    * @returns EnvioVenda criado com status EM_ANALISE
    * @throws BadRequestException se número de pedido já foi submetido pelo vendedor
@@ -72,20 +55,6 @@ export class EnvioVendaService {
     // ========================================
     // VALIDAÇÃO 1: DUPLICATA (Sprint 16.3)
     // ========================================
-    /**
-     * Verifica se o vendedor já submeteu este número de pedido
-     * para esta campanha.
-     * 
-     * Regra de Unicidade:
-     * - Por VENDEDOR: Vendedores diferentes podem submeter o mesmo pedido
-     * - Por CAMPANHA: O mesmo pedido pode ser submetido em campanhas diferentes
-     * 
-     * Combinação única: (numeroPedido + vendedorId + campanhaId)
-     * 
-     * Importante: Esta validação NÃO bloqueia:
-     * - O mesmo pedido submetido por vendedores diferentes (válido)
-     * - O mesmo pedido submetido em campanhas diferentes pelo mesmo vendedor (válido)
-     */
     this.logger.log(
       `[DUPLICATA] Verificando duplicidade para Pedido: ${dto.numeroPedido}, Vendedor: ${vendedorId}, Campanha: ${dto.campanhaId}`,
     );
@@ -115,27 +84,12 @@ export class EnvioVendaService {
     // ========================================
     // CRIAÇÃO DO ENVIO (Status: EM_ANALISE)
     // ========================================
-    /**
-     * Cria o registro EnvioVenda com status EM_ANALISE.
-     * 
-     * Campos Automáticos (defaults no schema Prisma):
-     * - status: EM_ANALISE (default)
-     * - dataEnvio: now() (default)
-     * - numeroCartelaAtendida: null (preenchido após validação)
-     * - dataValidacao: null (preenchido após validação)
-     * 
-     * Próximos Passos (fluxo assíncrono):
-     * 1. Admin/Robô valida o pedido (verifica no ERP/planilha)
-     * 2. Se válido: status → VALIDADO, dispara motor de recompensa
-     * 3. Se inválido: status → REJEITADO, registra motivoRejeicao
-     */
     const envio = await this.prisma.envioVenda.create({
       data: {
         numeroPedido: dto.numeroPedido,
         vendedorId,
         campanhaId: dto.campanhaId,
         requisitoId: dto.requisitoId,
-        // status, dataEnvio e outros campos default já definidos no schema
       },
     });
 
@@ -150,20 +104,8 @@ export class EnvioVendaService {
    * ============================================================================
    * LISTAR ENVIOS (Polimórfico: Admin, Gerente, Vendedor)
    * ============================================================================
-   * 
-   * Rota polimórfica de listagem de envios com controle de acesso baseado em papel.
-   * 
-   * Regras de Acesso (RBAC):
-   * - ADMIN: Vê todos os envios de todas as empresas (sem filtros de empresa)
-   * - GERENTE: Vê apenas envios da sua equipe (vendedores subordinados)
-   * - VENDEDOR: Vê apenas seus próprios envios (filtro vendedorId automático)
-   * 
-   * Filtros Opcionais (via query params):
-   * - campanhaId: Filtra por campanha específica
-   * - status: Filtra por status (EM_ANALISE, VALIDADO, REJEITADO)
-   * - vendedorId: (ADMIN/GERENTE apenas) Filtra por vendedor específico
-   * 
-   * @param usuario Objeto {id, papel} do usuário autenticado
+   * * Rota polimórfica de listagem de envios com controle de acesso baseado em papel.
+   * * @param usuario Objeto {id, papel} do usuário autenticado
    * @param filtros Filtros opcionais de query string
    * @returns Lista de envios de acordo com permissões
    */
@@ -179,22 +121,22 @@ export class EnvioVendaService {
     if (filtros.vendedorId) where.vendedorId = filtros.vendedorId;
 
     if (usuario.papel === 'VENDEDOR') {
-      // Vendedor só pode ver os próprios envios
+      // Vendedor só pode ver os próprios envios (Princípio 5.5)
       where.vendedorId = usuario.id;
     } else if (usuario.papel === 'GERENTE') {
-      // Gerente vê todos os vendedores subordinados a ele (usuários com gerenteId = id)
-      const equipe = await this.prisma.usuario.findMany({
-        where: { gerenteId: usuario.id },
-        select: { id: true },
-      });
+      // CORREÇÃO: Otimização para Gerente (Princípio 5.5/Performance)
+      // Gerente vê envios de vendedores subordinados (vendedores com gerenteId = id)
+      
+      /**
+       * Sub-filtro aninhado: Busca envios onde o Vendedor tem o gerenteId igual
+       * ao ID do usuário autenticado. Isso elimina a consulta extra de IDs de equipe.
+       */
+      where.vendedor = {
+        gerenteId: usuario.id,
+      };
 
-      const idsEquipe = equipe.map((u) => u.id);
-      if (idsEquipe.length) {
-        where.vendedorId = { in: idsEquipe };
-      } else {
-        // Gerente sem equipe não vê nada
-        where.vendedorId = '-';
-      }
+      // Se um vendedorId específico foi passado (e o Gerente tem acesso a ele), o filtro
+      // vendedorId do 'filtros' será aplicado em conjunto com este filtro.
     }
 
     // Admin vê tudo, apenas aplica os filtros
@@ -215,40 +157,7 @@ export class EnvioVendaService {
    * ============================================================================
    * LISTAR MINHAS SUBMISSÕES (Vendedor - Nova Rota)
    * ============================================================================
-   * 
-   * Endpoint dedicado para vendedores listarem seu próprio histórico de envios
-   * para uma campanha específica.
-   * 
-   * Diferenças vs listar():
-   * - Não é polimórfico (apenas VENDEDOR)
-   * - Exige campanhaId obrigatório (validado por DTO)
-   * - Retorna campos otimizados para UI do frontend (página de detalhes da campanha)
-   * - Automaticamente filtra por vendedorId = req.user.id (Data Tenancy)
-   * 
-   * Segurança (Data Tenancy):
-   * O vendedorId é SEMPRE extraído do token JWT (req.user.id), nunca do body/query.
-   * Isso impede que um vendedor veja envios de outros vendedores, mesmo que
-   * tente manipular a requisição.
-   * 
-   * Campos Retornados (Otimizados para Frontend):
-   * - id: Identificador único do envio
-   * - numeroPedido: Número do pedido submetido
-   * - status: EM_ANALISE | VALIDADO | REJEITADO
-   * - dataEnvio: Data/hora da submissão
-   * - dataValidacao: Data/hora da validação (null se ainda em análise)
-   * - motivoRejeicao: Motivo da rejeição (null se validado/em análise)
-   * - requisitoId: ID do requisito atendido
-   * - numeroCartelaAtendida: Número da cartela (para exibição)
-   * 
-   * Uso (Frontend):
-   * ```
-   * const envios = await axios.get('/envios-venda/minhas', {
-   *   params: { campanhaId: '550e8400-...' }
-   * });
-   * // Exibir lista de envios na página /campanhas/[id]
-   * ```
-   * 
-   * @param vendedorId ID do vendedor autenticado (extraído do token JWT)
+   * * @param vendedorId ID do vendedor autenticado (extraído do token JWT)
    * @param campanhaId ID da campanha (obrigatório, validado por DTO)
    * @returns Lista de envios do vendedor para a campanha especificada
    */
@@ -258,7 +167,7 @@ export class EnvioVendaService {
     );
 
     // ========================================
-    // QUERY PRISMA COM FILTROS DE SEGURANÇA
+    // QUERY PRISMA COM FILTROS DE SEGURANÇA (Princípio 5.5)
     // ========================================
     return this.prisma.envioVenda.findMany({
       where: {
@@ -289,23 +198,7 @@ export class EnvioVendaService {
    * ============================================================================
    * VALIDAR MANUALMENTE (Admin Only)
    * ============================================================================
-   * 
-   * Rota exclusiva para Admin validar manualmente um envio EM_ANALISE.
-   * Calcula spillover (número da cartela) de forma idêntica ao "robô".
-   * Atualiza status para VALIDADO e dispara motor de recompensa de forma transacional.
-   * 
-   * Validações:
-   * - Envio existe
-   * - Envio está EM_ANALISE (não pode validar envio já processado)
-   * 
-   * Transação Atômica:
-   * 1. Conta envios já validados do vendedor para este requisito
-   * 2. Calcula número da cartela (spillover)
-   * 3. Atualiza status do envio para VALIDADO
-   * 4. Dispara motor de recompensa (RecompensaService.processarGatilhos)
-   * 5. Retorna envio atualizado
-   * 
-   * @param envioId ID do envio a ser validado
+   * * @param envioId ID do envio a ser validado
    * @returns EnvioVenda atualizado
    * @throws NotFoundException se envio não existir
    * @throws BadRequestException se envio não estiver EM_ANALISE
@@ -333,19 +226,8 @@ export class EnvioVendaService {
      */
     return this.prisma.$transaction(async (tx) => {
       // -----------------------------------------------------------------------
-      // CORREÇÃO SPILLOVER (Sprint 16.5 - Tarefa 38.8)
+      // CÁLCULO SPILLOVER (Lógica de Alocação de Cartela)
       // -----------------------------------------------------------------------
-      /**
-       * PROBLEMA: Cada cartela tem requisitos com IDs DIFERENTES, mas mesma ORDEM.
-       * - Cartela 1: Lente X (id: uuid-1a, ordem: 1)
-       * - Cartela 2: Lente X (id: uuid-2a, ordem: 1)
-       * - Cartela 3: Lente X (id: uuid-3a, ordem: 1)
-       *
-       * Se contar apenas por requisitoId específico (uuid-2a), só vê envios da Cartela 2.
-       * Mas o spillover precisa contar TODOS os validados da ordem 1!
-       *
-       * SOLUÇÃO: Buscar TODOS os requisitos com a mesma ordem e contar validados de TODOS.
-       */
 
       // PASSO 2A: Buscar todos os requisitos relacionados (mesma ordem)
       const requisitosRelacionados = await tx.requisitoCartela.findMany({
@@ -376,7 +258,7 @@ export class EnvioVendaService {
       });
 
       const quantidadeRequisito = envio.requisito.quantidade;
-      const numeroCartela = Math.floor(countValidado / quantidadeRequisito) + 1;
+      const numeroCartela = Math.floor(countValidado / quantidadeRequisito) + 1; // Lógica de Spillover
 
       this.logger.log(
         `[ADMIN] Validação manual do envio ${envioId}: countValidado=${countValidado}, quantidade=${quantidadeRequisito}, numeroCartelaAtendida=${numeroCartela}`,
@@ -413,15 +295,7 @@ export class EnvioVendaService {
    * ============================================================================
    * REJEITAR MANUALMENTE (Admin Only)
    * ============================================================================
-   * 
-   * Rota exclusiva para Admin rejeitar manualmente um envio EM_ANALISE.
-   * Atualiza status para REJEITADO e registra motivo.
-   * 
-   * Validações:
-   * - Envio existe
-   * - Envio está EM_ANALISE (não pode rejeitar envio já processado)
-   * 
-   * @param envioId ID do envio a ser rejeitado
+   * * @param envioId ID do envio a ser rejeitado
    * @param dto DTO contendo motivoRejeicao
    * @returns EnvioVenda atualizado
    * @throws NotFoundException se envio não existir

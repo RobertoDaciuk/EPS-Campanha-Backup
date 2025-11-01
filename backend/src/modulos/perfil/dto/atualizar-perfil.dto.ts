@@ -74,16 +74,15 @@ export class AtualizarPerfilDto {
    * - Deve conter entre 12 e 13 dígitos (ex: 5511987654321).
    * - Campo opcional (apenas se o usuário quiser atualizar).
    *
-   * Formato esperado: DDI (2 dígitos) + DDD (2 dígitos) + Número (8-9 dígitos)
-   * - Brasil (55): 5511987654321 (12 dígitos) ou 55119876543210 (13 dígitos)
+   * Formato esperado:  DDD (2 dígitos) + Número (8-9 dígitos)
    *
-   * @example "5511987654321"
+   * @example "11987654321"
    */
   @IsString({ message: 'O WhatsApp deve ser uma string.' })
   @IsOptional()
-  @Matches(/^\d{12,13}$/, {
+  @Matches(/^\d{11,12}$/, {
     message:
-      'WhatsApp deve conter DDI, DDD e número, totalizando 12 ou 13 dígitos (apenas números).',
+      'WhatsApp deve conter DDD e número, totalizando 11 ou 12 dígitos (apenas números).',
   })
   whatsapp?: string;
 

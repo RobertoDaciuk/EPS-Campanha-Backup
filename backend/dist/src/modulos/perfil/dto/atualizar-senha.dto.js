@@ -15,15 +15,15 @@ class AtualizarSenhaDto {
 }
 exports.AtualizarSenhaDto = AtualizarSenhaDto;
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)({ message: 'A senha atual deve ser uma string.' }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'A senha atual é obrigatória.' }),
     __metadata("design:type", String)
 ], AtualizarSenhaDto.prototype, "senhaAtual", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(8),
-    (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/, {
-        message: 'A nova senha deve conter pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial.',
+    (0, class_validator_1.IsString)({ message: 'A nova senha deve ser uma string.' }),
+    (0, class_validator_1.MinLength)(8, { message: 'A nova senha deve ter no mínimo 8 caracteres.' }),
+    (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/, {
+        message: 'A nova senha deve conter pelo menos 1 letra maiúscula, 1 minúscula, 1 número e 1 caractere especial (@$!%*?&#).',
     }),
     __metadata("design:type", String)
 ], AtualizarSenhaDto.prototype, "novaSenha", void 0);

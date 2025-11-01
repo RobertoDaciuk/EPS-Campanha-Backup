@@ -1,26 +1,19 @@
 /**
  * ============================================================================
- * CAMPANHA SERVICE - Lógica de Negócio do Módulo de Campanhas
+ * CAMPANHA SERVICE - Lógica de Negócio do Módulo de Campanhas (REFATORADO)
  * ============================================================================
- * 
- * Descrição:
+ * * Descrição:
  * Serviço responsável por toda a lógica de gerenciamento de campanhas.
- * Implementa criação transacional complexa com DTOs aninhados.
- * 
- * Responsabilidades:
- * - Criar campanha completa com cartelas, requisitos e condições (transação atômica)
- * - Listar campanhas
- * - Buscar campanha por ID com dados aninhados completos
- * - Atualizar dados básicos da campanha
- * - Remover campanha (soft delete ou hard delete)
- * 
- * Complexidade:
- * Este é o serviço mais complexo do sistema até agora, pois lida com:
+ * * REFATORAÇÃO (Q.I. 170):
+ * - NOVO: Validação manual de unicidade do campo `ordem` dentro de cada cartela
+ * no método `criar` (Princípio 1 - Integridade Lógica Crítica).
+ * - CORRIGIDO: O método `remover` agora recebe e usa o contexto do `usuario`
+ * logado para verificar a existência da campanha através do método seguro
+ * `buscarPorId(id, usuario)` (Princípio 5.5 - Isolamento de Dados).
+ * * Complexidade:
  * - Transações atômicas (garantia de integridade)
  * - Dados profundamente aninhados (4 níveis de hierarquia)
- * - Validação em cascata
- * 
- * @module CampanhasModule
+ * * @module CampanhasModule
  * ============================================================================
  */
 
@@ -47,75 +40,22 @@ export class CampanhaService {
 
   /**
    * Construtor do serviço.
-   * 
-   * @param prisma - Serviço Prisma para acesso ao banco de dados
+   * * @param prisma - Serviço Prisma para acesso ao banco de dados
    */
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Cria uma campanha completa com toda sua estrutura aninhada.
-   * 
-   * Esta é a operação mais complexa do sistema. Usa transação atômica
-   * para garantir que TODOS os dados sejam criados com sucesso ou
-   * NENHUM dado seja persistido (rollback automático em caso de erro).
-   * 
-   * Fluxo de Criação:
-   * 1. Inicia transação
-   * 2. Cria Campanha base
-   * 3. Loop: Para cada cartela do DTO
-   *    3.1. Cria RegraCartela
-   *    3.2. Loop: Para cada requisito da cartela
-   *         3.2.1. Cria RequisitoCartela
-   *         3.2.2. Loop: Para cada condição do requisito
-   *                3.2.2.1. Cria CondicaoRequisito
-   * 4. Commit da transação (se tudo OK)
-   * 5. Rollback automático (se qualquer erro)
-   * 
-   * @param dto - Dados completos da campanha (aninhados)
+   * * @param dto - Dados completos da campanha (aninhados)
    * @returns Campanha criada
-   * 
-   * @throws {BadRequestException} Se dados inválidos ou duplicados
-   * 
-   * @example
-   * ```
-   * const campanha = await campanhaService.criar({
-   *   titulo: "Campanha Lentes Q1 2025",
-   *   descricao: "...",
-   *   dataInicio: "2025-01-01",
-   *   dataFim: "2025-03-31",
-   *   pontosPorCartela: 1000,
-   *   valorPorCartela: 500,
-   *   percentualGerente: 0.10,
-   *   cartelas: [
-   *     {
-   *       numeroCartela: 1,
-   *       descricao: "Cartela Bronze",
-   *       requisitos: [
-   *         {
-   *           descricao: "Lentes BlueProtect Max",
-   *           quantidade: 5,
-   *           tipoUnidade: "PAR",
-   *           condicoes: [
-   *             {
-   *               campo: "NOME_PRODUTO",
-   *               operador: "CONTEM",
-   *               valor: "BlueProtect"
-   *             }
-   *           ]
-   *         }
-   *       ]
-   *     }
-   *   ]
-   * });
-   * ```
+   * * @throws {BadRequestException} Se datas inválidas, IDs de Ótica inválidos,
+   * ou se a regra de negócio da `ordem` (unicidade dentro da cartela) for violada.
    */
   async criar(dto: CriarCampanhaDto): Promise<Campanha> {
     this.logger.log(`Criando campanha: ${dto.titulo}`);
 
     /**
-     * Validação de datas.
-     * 
-     * dataFim deve ser posterior a dataInicio.
+     * Validação de Datas (Pre-check)
      */
     const dataInicio = new Date(dto.dataInicio);
     const dataFim = new Date(dto.dataFim);
@@ -127,25 +67,26 @@ export class CampanhaService {
     }
 
     /**
+     * VALIDAÇÃO DE NEGÓCIO CRÍTICA (Princípio 1 - Unicidade de Ordem)
+     * * Garante que o campo `ordem` seja único dentro de cada array de requisitos
+     * de UMA ÚNICA cartela.
+     */
+    for (const cartelaDto of dto.cartelas) {
+      const ordensEncontradas = new Set<number>();
+      for (const requisitoDto of cartelaDto.requisitos) {
+        if (ordensEncontradas.has(requisitoDto.ordem)) {
+          throw new BadRequestException(
+            `A Cartela ${cartelaDto.numeroCartela} possui requisitos com a Ordem (${requisitoDto.ordem}) duplicada. A Ordem deve ser única dentro da mesma cartela.`,
+          );
+        }
+        ordensEncontradas.add(requisitoDto.ordem);
+      }
+    }
+
+    /**
      * Transação atômica.
-     *
-     * Prisma.$transaction garante que todas as operações sejam bem-sucedidas
-     * ou nenhuma seja persistida. Isso é CRÍTICO para integridade de dados.
-     *
-     * Se qualquer operação dentro do bloco falhar (throw Error):
-     * - Todas as operações anteriores são revertidas (rollback)
-     * - Banco volta ao estado anterior
-     * - Erro é propagado para o controller
-     *
-     * Isolamento: Nenhum outro processo vê dados parciais durante a transação.
      */
     return this.prisma.$transaction(async (tx) => {
-      /**
-       * PASSO 1: Criar Campanha Base (ATUALIZADO - Sprint 17, Tarefa 41)
-       *
-       * Cria o registro principal da campanha, incluindo targeting de óticas.
-       */
-
       // Construir objeto de dados da campanha
       const dadosCampanha: Prisma.CampanhaCreateInput = {
         titulo: dto.titulo,
@@ -160,11 +101,11 @@ export class CampanhaService {
       };
 
       // -----------------------------------------------------------------------
-      // NOVO (Sprint 17): Validar e conectar Óticas Alvo
+      // Validar e conectar Óticas Alvo (Targeting)
       // -----------------------------------------------------------------------
       if (!dadosCampanha.paraTodasOticas && dto.oticasAlvoIds && dto.oticasAlvoIds.length > 0) {
         // Validação: Verificar se todos os IDs de Ótica existem e estão ativos
-        const countOticas = await this.prisma.optica.count({
+        const countOticas = await tx.optica.count({ // Usar tx para consistência
           where: { id: { in: dto.oticasAlvoIds }, ativa: true },
         });
 
@@ -189,21 +130,13 @@ export class CampanhaService {
       this.logger.log(`Campanha base criada: ${campanha.id}`);
 
       /**
-       * PASSO 2: Criar Cartelas (Regras de Cartela)
-       * 
-       * Loop sequencial pelas cartelas do DTO.
-       * Usa for...of para manter ordem e aguardar cada criação.
+       * PASSO 2, 3 e 4: Criar Cartelas, Requisitos e Condições (Loop Aninhado)
        */
       for (const cartelaDto of dto.cartelas) {
         this.logger.log(
           `Criando cartela ${cartelaDto.numeroCartela} para campanha ${campanha.id}`,
         );
 
-        /**
-         * Cria RegraCartela.
-         * 
-         * Vincula à campanha recém-criada via campanhaId.
-         */
         const regraCartela = await tx.regraCartela.create({
           data: {
             numeroCartela: cartelaDto.numeroCartela,
@@ -212,53 +145,26 @@ export class CampanhaService {
           },
         });
 
-        /**
-         * PASSO 3: Criar Requisitos da Cartela
-         *
-         * Loop sequencial pelos requisitos de cada cartela.
-         *
-         * ATUALIZADO Sprint 16.5 - Tarefa 38.7:
-         * - Agora persiste o campo ordem vindo do DTO
-         * - Este campo é CRÍTICO para spillover correto entre cartelas
-         */
         for (const requisitoDto of cartelaDto.requisitos) {
           this.logger.log(
             `Criando requisito "${requisitoDto.descricao}" (ordem ${requisitoDto.ordem}) para cartela ${regraCartela.numeroCartela}`,
           );
 
-          /**
-           * Cria RequisitoCartela.
-           *
-           * Vincula à regra de cartela recém-criada via regraCartelaId.
-           *
-           * IMPORTANTE: O campo ordem permite agrupar requisitos relacionados
-           * entre cartelas diferentes (ex: "Lentes X" ordem=1 em todas as cartelas).
-           */
           const requisito = await tx.requisitoCartela.create({
             data: {
               descricao: requisitoDto.descricao,
               quantidade: requisitoDto.quantidade,
               tipoUnidade: requisitoDto.tipoUnidade,
-              ordem: requisitoDto.ordem, // ✅ ADICIONADO Sprint 16.5
+              ordem: requisitoDto.ordem,
               regraCartelaId: regraCartela.id,
             },
           });
 
-          /**
-           * PASSO 4: Criar Condições do Requisito (Rule Builder)
-           * 
-           * Loop sequencial pelas condições de cada requisito.
-           */
           for (const condicaoDto of requisitoDto.condicoes) {
             this.logger.log(
               `Criando condição ${condicaoDto.campo} ${condicaoDto.operador} "${condicaoDto.valor}" para requisito ${requisito.id}`,
             );
 
-            /**
-             * Cria CondicaoRequisito.
-             * 
-             * Vincula ao requisito recém-criado via requisitoId.
-             */
             await tx.condicaoRequisito.create({
               data: {
                 campo: condicaoDto.campo,
@@ -275,25 +181,12 @@ export class CampanhaService {
         `✅ Campanha "${campanha.titulo}" criada com sucesso (ID: ${campanha.id})`,
       );
 
-      /**
-       * Retorna a campanha criada.
-       * 
-       * A transação é automaticamente commitada ao final do bloco
-       * se nenhum erro foi lançado.
-       */
       return campanha;
     });
   }
 
   /**
    * Lista campanhas visíveis para o usuário logado.
-   *
-   * ATUALIZADO (Sprint 17 - Tarefa 42):
-   * - Filtra campanhas baseado no papel e ótica do usuário
-   * - Admin vê todas as campanhas
-   * - Vendedores/Gerentes veem apenas campanhas direcionadas para sua ótica ou matriz
-   *
-   * Retorna campanhas ordenadas por data de início (mais recentes primeiro).
    *
    * @param usuario - Dados do usuário logado (id, papel, opticaId)
    * @returns Array de campanhas
@@ -306,7 +199,7 @@ export class CampanhaService {
       status: 'ATIVA', // Filtra apenas campanhas ativas (ajuste se necessário)
     };
 
-    // Admin vê tudo (ou ajuste se Admin também for ligado a ótica)
+    // Admin vê tudo
     if (usuario.papel !== PapelUsuario.ADMIN) {
       const condicoesVisibilidade: Prisma.CampanhaWhereInput[] = [
         { paraTodasOticas: true }, // Condição 1: Campanha para todos
@@ -350,18 +243,6 @@ export class CampanhaService {
   /**
    * Busca uma campanha específica pelo ID com dados aninhados completos.
    *
-   * ATUALIZADO (Sprint 17 - Tarefa 42):
-   * - Inclui oticasAlvo no retorno (para frontend saber quem é o alvo)
-   * - Verifica se o usuário tem permissão para ver esta campanha (segurança)
-   * - Parâmetro usuario opcional (para chamadas internas do serviço)
-   *
-   * Retorna campanha com toda a estrutura hierárquica carregada:
-   * - Campanha
-   *   └─ Cartelas
-   *       └─ Requisitos
-   *           └─ Condições
-   *   └─ Óticas Alvo (Sprint 17)
-   *
    * @param id - UUID da campanha
    * @param usuario - Dados do usuário logado (opcional para chamadas internas)
    * @returns Campanha com dados aninhados
@@ -388,7 +269,7 @@ export class CampanhaService {
           },
         },
         oticasAlvo: {
-          select: { id: true, nome: true }, // Sprint 17: Inclui óticas alvo
+          select: { id: true, nome: true },
         },
       },
     });
@@ -399,8 +280,7 @@ export class CampanhaService {
     }
 
     // -----------------------------------------------------------------------
-    // NOVO (Sprint 17): Verificação de Acesso (Segurança)
-    // Apenas valida se usuário for fornecido (chamadas via controller)
+    // Verificação de Acesso (Segurança - Princípio 5.5)
     // -----------------------------------------------------------------------
     if (usuario && usuario.papel !== PapelUsuario.ADMIN) {
       let podeVer = campanha.paraTodasOticas; // Verifica se é para todos
@@ -432,21 +312,11 @@ export class CampanhaService {
       }
     }
 
-    // Se chegou aqui, o usuário tem permissão (ou é chamada interna)
     return campanha;
   }
 
   /**
    * Atualiza dados básicos de uma campanha existente.
-   *
-   * Permite atualização parcial apenas dos campos da campanha base.
-   * NÃO permite atualizar cartelas/requisitos/condições aninhadas.
-   *
-   * Para alterar estrutura de cartelas, Admin deve criar nova campanha.
-   *
-   * ATUALIZADO (Sprint 17 - Tarefa 41):
-   * - Permite atualizar paraTodasOticas
-   * - NÃO permite atualizar oticasAlvo (simplificação)
    *
    * @param id - UUID da campanha
    * @param dto - Dados a serem atualizados
@@ -457,7 +327,7 @@ export class CampanhaService {
   async atualizar(id: string, dto: AtualizarCampanhaDto): Promise<Campanha> {
     this.logger.log(`Atualizando campanha: ${id}`);
 
-    // Verifica se campanha existe
+    // Verifica se campanha existe e se é acessível (Admin sempre acessa)
     await this.buscarPorId(id);
 
     // Valida datas se ambas fornecidas
@@ -481,18 +351,11 @@ export class CampanhaService {
       dados.dataFim = new Date(dto.dataFim);
     }
 
-    // Adiciona paraTodasOticas se presente no DTO (Sprint 17)
     if (dto.paraTodasOticas !== undefined) {
       dados.paraTodasOticas = dto.paraTodasOticas;
-
-      // IMPORTANTE: Se paraTodasOticas vira TRUE, idealmente deveríamos limpar a relação oticasAlvo
-      // Decisão: Manter simples por agora, só atualiza o boolean.
-      // if (dto.paraTodasOticas === true) {
-      //   dados.oticasAlvo = { set: [] }; // Desconecta todas as óticas
-      // }
     }
 
-    // Remove campos não permitidos no update (garantia extra, já está no DTO)
+    // Remove campos não permitidos no update (garantia extra)
     delete dados['cartelas'];
     delete dados['oticasAlvoIds'];
 
@@ -508,27 +371,23 @@ export class CampanhaService {
 
   /**
    * Remove uma campanha do sistema.
-   * 
-   * Implementação atual: Hard delete (deleta fisicamente).
-   * 
-   * Cascata: Prisma automaticamente remove:
-   * - Todas as RegraCartela da campanha (onDelete: Cascade)
-   * - Todos os RequisitoCartela dessas cartelas (onDelete: Cascade)
-   * - Todas as CondicaoRequisito desses requisitos (onDelete: Cascade)
-   * 
-   * Para soft delete, altere para:
-   * await this.prisma.campanha.update({ where: { id }, data: { status: 'INATIVA' } })
-   * 
-   * @param id - UUID da campanha
+   * * CORREÇÃO (Princípio 5.5 - Segurança/Isolamento de Dados):
+   * - O método agora recebe o contexto do usuário e usa `buscarPorId` para
+   * garantir que a campanha existe e o usuário tem permissão para acessá-la
+   * antes de deletar.
+   * * @param id - UUID da campanha
+   * @param usuario - Dados do usuário logado (usado para verificar acesso)
    * @returns Campanha removida
-   * 
-   * @throws {NotFoundException} Se campanha não encontrada
+   * * @throws {NotFoundException} Se campanha não encontrada
    */
-  async remover(id: string): Promise<Campanha> {
+  async remover(
+    id: string,
+    usuario: { id: string; papel: PapelUsuario; opticaId?: string | null },
+  ): Promise<Campanha> {
     this.logger.log(`Removendo campanha: ${id}`);
 
-    // Verifica se campanha existe
-    await this.buscarPorId(id);
+    // Verifica se campanha existe E se é acessível ao usuário (Admin sempre passa)
+    await this.buscarPorId(id, usuario);
 
     // Hard delete (deleção física com cascata automática)
     const campanha = await this.prisma.campanha.delete({
@@ -540,13 +399,5 @@ export class CampanhaService {
     );
 
     return campanha;
-
-    // Alternativa: Soft delete (desativar campanha)
-    // const campanha = await this.prisma.campanha.update({
-    //   where: { id },
-    //   data: { status: 'INATIVA' },
-    // });
-    // this.logger.log(`✅ Campanha desativada: ${campanha.titulo}`);
-    // return campanha;
   }
 }

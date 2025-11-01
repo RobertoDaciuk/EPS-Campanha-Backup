@@ -11,10 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CriarEnvioVendaDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 class CriarEnvioVendaDto {
 }
 exports.CriarEnvioVendaDto = CriarEnvioVendaDto;
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            return value.trim().replace(/<|>/g, '').replace(/&/g, '&amp;');
+        }
+        return value;
+    }),
     (0, class_validator_1.IsString)({ message: 'O número do pedido deve ser uma string' }),
     (0, class_validator_1.IsNotEmpty)({ message: 'O número do pedido não pode estar vazio' }),
     __metadata("design:type", String)

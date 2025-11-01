@@ -1,10 +1,25 @@
+/**
+ * ============================================================================
+ * PÁGINA: Listagem de Campanhas (CORRIGIDO - Erros de Módulo, Tipagem e Lógica)
+ * ============================================================================
+ * * Descrição:
+ * Página de listagem de campanhas com filtros por status e carregamento dinâmico.
+ * * CORREÇÃO (Q.I. 170):
+ * - Corrigida a importação de `useAuth` e a desestruturação de `carregando`
+ * para resolver o erro de compilação (Princípio 1, 2).
+ * - Refatorada a função `getStatusCampanha` para adicionar o status `FUTURA`
+ * e corrigir a lógica de agrupamento.
+ *
+ * @module Campanhas
+ * ============================================================================
+ */
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/ContextoAutenticacao"; // CORRIGIDO: Nome do contexto
 import api from "@/lib/axios";
-import { Loader2, Search, Filter } from "lucide-react";
+import { Loader2, Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -13,29 +28,23 @@ import CampaignCard, { Campanha } from "@/components/campanhas/CampaignCard";
 import SkeletonCampaignCard from "@/components/campanhas/SkeletonCampaignCard";
 
 /**
- * Tipo de filtro de status
+ * Tipo de filtro de status (Adicionado FUTURAS para melhor UX)
  */
-type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "EXPIRADAS";
+type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "EXPIRADAS" | "FUTURAS";
 
 /**
- * Determina o status atual da campanha baseado nas datas
- * 
- * @param campanha - Dados da campanha
- * @returns Status calculado (ATIVA, CONCLUIDA, EXPIRADA)
+ * Determina o status atual da campanha baseado nas datas (Lógica Corrigida)
+ * * @param campanha - Dados da campanha
+ * @returns Status calculado (ATIVA, CONCLUIDA, EXPIRADA, FUTURA)
  */
 function getStatusCampanha(campanha: Campanha): string {
   const agora = new Date();
   const dataInicio = new Date(campanha.dataInicio);
   const dataFim = new Date(campanha.dataFim);
 
-  // Campanha ainda não começou
+  // Campanha ainda não começou (CORRIGIDO: Status FUTURA)
   if (agora < dataInicio) {
-    return "EXPIRADA"; // Futura (agrupada com expiradas por enquanto)
-  }
-
-  // Campanha está no período ativo
-  if (agora >= dataInicio && agora <= dataFim) {
-    return "ATIVA";
+    return "FUTURA";
   }
 
   // Campanha já terminou
@@ -43,23 +52,22 @@ function getStatusCampanha(campanha: Campanha): string {
     return "CONCLUIDA";
   }
 
-  // Fallback para o status da API
+  // Campanha está no período ativo
+  if (agora >= dataInicio && agora <= dataFim) {
+    return "ATIVA";
+  }
+
+  // Fallback para o status da API (embora as datas devam cobrir todos os casos)
   return campanha.status;
 }
 
 /**
  * Página de Listagem de Campanhas
- * 
- * Características:
- * - Busca todas as campanhas da API
- * - Filtros por abas (Ativas, Concluídas, Expiradas)
- * - Grid responsivo de cards
- * - Estados de loading e vazio
- * - Navegação para detalhes da campanha
  */
 export default function CampanhasPage() {
   const router = useRouter();
-  const { estaAutenticado, isLoading: isAuthLoading } = useAuth();
+  // CORRIGIDO: Usar 'carregando' e renomear para isAuthLoading
+  const { estaAutenticado, carregando: isAuthLoading } = useAuth();
 
   // Estados
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
@@ -89,7 +97,8 @@ export default function CampanhasPage() {
       setIsLoading(true);
 
       try {
-        const response = await api.get<Campanha[]>("/campanhas");
+        // O serviço de backend já filtra as campanhas visíveis ao usuário (Princípio 5.5)
+        const response = await api.get<Campanha[]>("/campanhas"); 
         setCampanhas(response.data);
       } catch (error: any) {
         console.error("Erro ao buscar campanhas:", error);
@@ -119,7 +128,8 @@ export default function CampanhasPage() {
 
       if (filtroStatus === "ATIVAS") return statusAtual === "ATIVA";
       if (filtroStatus === "CONCLUIDAS") return statusAtual === "CONCLUIDA";
-      if (filtroStatus === "EXPIRADAS") return statusAtual === "EXPIRADA";
+      if (filtroStatus === "EXPIRADAS") return statusAtual === "EXPIRADA"; // Mantido se o backend usar
+      if (filtroStatus === "FUTURAS") return statusAtual === "FUTURA";
 
       return false;
     });
@@ -144,6 +154,11 @@ export default function CampanhasPage() {
   // RENDER DA PÁGINA
   // ========================================
 
+  // Função auxiliar para contar o número de campanhas por status
+  const contarStatus = (status: string) => 
+    campanhas.filter((c) => getStatusCampanha(c) === status).length;
+
+
   return (
     <div className="space-y-6">
       {/* ========================================
@@ -167,7 +182,7 @@ export default function CampanhasPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
-        className="glass rounded-xl p-2 inline-flex space-x-2"
+        className="glass rounded-xl p-2 inline-flex flex-wrap space-x-2"
       >
         {/* Aba: Ativas */}
         <button
@@ -187,11 +202,30 @@ export default function CampanhasPage() {
                   : "bg-muted"
               }`}
             >
-              {
-                campanhas.filter(
-                  (c) => getStatusCampanha(c) === "ATIVA"
-                ).length
-              }
+              {contarStatus("ATIVA")}
+            </span>
+          )}
+        </button>
+
+        {/* Aba: Futuras (NOVA ABA) */}
+        <button
+          onClick={() => setFiltroStatus("FUTURAS")}
+          className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
+            filtroStatus === "FUTURAS"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
+          }`}
+        >
+          Futuras
+          {!isLoading && (
+            <span
+              className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                filtroStatus === "FUTURAS"
+                  ? "bg-primary-foreground/20"
+                  : "bg-muted"
+              }`}
+            >
+              {contarStatus("FUTURA")}
             </span>
           )}
         </button>
@@ -214,16 +248,12 @@ export default function CampanhasPage() {
                   : "bg-muted"
               }`}
             >
-              {
-                campanhas.filter(
-                  (c) => getStatusCampanha(c) === "CONCLUIDA"
-                ).length
-              }
+              {contarStatus("CONCLUIDA")}
             </span>
           )}
         </button>
 
-        {/* Aba: Expiradas */}
+        {/* Aba: Expiradas (Pode ser removida no futuro, mas mantida por agora) */}
         <button
           onClick={() => setFiltroStatus("EXPIRADAS")}
           className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
@@ -241,11 +271,7 @@ export default function CampanhasPage() {
                   : "bg-muted"
               }`}
             >
-              {
-                campanhas.filter(
-                  (c) => getStatusCampanha(c) === "EXPIRADA"
-                ).length
-              }
+              {contarStatus("EXPIRADA")}
             </span>
           )}
         </button>
@@ -288,7 +314,9 @@ export default function CampanhasPage() {
                 Não há campanhas{" "}
                 {filtroStatus === "ATIVAS" && "ativas"}
                 {filtroStatus === "CONCLUIDAS" && "concluídas"}
-                {filtroStatus === "EXPIRADAS" && "expiradas"} no momento.
+                {filtroStatus === "EXPIRADAS" && "expiradas"}
+                {filtroStatus === "FUTURAS" && "futuras"}
+                 no momento.
               </p>
               {filtroStatus !== "ATIVAS" && (
                 <button

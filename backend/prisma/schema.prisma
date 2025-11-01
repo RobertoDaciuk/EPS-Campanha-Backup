@@ -13,7 +13,8 @@
 // - Campanha: Adicionado campo paraTodasOticas (bypass do targeting)
 // - VALIDAÇÃO: CNPJ agora valida contra ótica do vendedor OU sua matriz
 // - TARGETING: Campanhas podem ser direcionadas para Matriz e/ou Filiais específicas
-// - RANKING: Gerentes de Matriz veem ranking separado por filial
+// - RANKING: Gerentes de Matriz veem ranking separado por 
+filial
 //
 // Alterações na Versão 4.3 (Sprint Refactor - Tarefa 41.1 - Nova Economia Interna):
 // - REFATORAÇÃO COMPLETA da economia do sistema: separação entre "Pontos" e "Moedinhas"
@@ -25,7 +26,8 @@
 // - LÓGICA: Vendedor recebe "Pontos" (R$) E "Moedinhas" ao completar cartela
 // - Ranking baseado apenas em "Moedinhas" acumuladas (não afetado por resgates)
 //
-// Alterações na Versão 4.2 (Sprint 16.5 - Tarefa 38.6 - Correção Spillover):
+// Alterações na Versão 
+4.2 (Sprint 16.5 - Tarefa 38.6 - Correção Spillover):
 // - Adicionado campo ordem (Int) ao RequisitoCartela para suportar spillover correto
 // - Adicionado index em RequisitoCartela.ordem para otimizar queries de spillover
 // - CRÍTICO: Este campo permite agrupar requisitos relacionados entre cartelas
@@ -36,7 +38,8 @@
 //   para armazenar preferências de mapeamento de colunas da planilha
 //
 // Alterações na Versão 4.0 (Sprint 3 - Rule Builder):
-// - Adicionado enums TipoUnidade, CampoVerificacao, OperadorCondicao
+// - Adicionado enums 
+TipoUnidade, CampoVerificacao, OperadorCondicao
 // - Criado model CondicaoRequisito (receitas de validação dinâmicas)
 // - Refatorado RequisitoCartela (removido nomeProduto, adicionado tipoUnidade e condicoes[])
 // - Refatorado EnvioVenda (removido produtoVendido, requisito agora é obrigatório)
@@ -61,7 +64,8 @@ datasource db {
 
 /// Papel do usuário no sistema (hierarquia de permissões)
 enum PapelUsuario {
-  ADMIN      // Acesso total, valida vendas, configura campanhas, aprova cadastros
+  ADMIN      // Acesso total, valida vendas, configura 
+campanhas, aprova cadastros
   GERENTE    // Gerencia vendedores, recebe comissão percentual
   VENDEDOR   // Submete vendas, ganha pontos, resgata prêmios
 }
@@ -75,7 +79,8 @@ enum StatusUsuario {
 
 /// Status do envio de venda (fluxo de validação)
 enum StatusEnvioVenda {
-  EM_ANALISE      // Inicial: aguardando validação do Admin
+  EM_ANALISE      // Inicial: aguardando 
+validação do Admin
   VALIDADO        // Admin aprovou: pontos creditados, cartela alocada
   REJEITADO       // Admin rejeitou: não credita pontos
   CONFLITO_MANUAL // Duplicata detectada: requer intervenção manual do Admin
@@ -91,7 +96,8 @@ enum StatusPagamento {
 enum NivelVendedor {
   BRONZE   // Nível inicial
   PRATA    // Ex: >= 5.000 moedinhas acumuladas
-  OURO     // Ex: >= 15.000 moedinhas acumuladas
+  OURO  
+   // Ex: >= 15.000 moedinhas acumuladas
   DIAMANTE // Ex: >= 30.000 moedinhas acumuladas
 }
 
@@ -109,7 +115,8 @@ enum TipoUnidade {
 enum CampoVerificacao {
   NOME_PRODUTO      // Nome/descrição do produto vendido
   CODIGO_PRODUTO    // Código/SKU do produto
-  VALOR_VENDA       // Valor monetário da venda (para regras de ticket mínimo)
+  
+VALOR_VENDA       // Valor monetário da venda (para regras de ticket mínimo)
   CATEGORIA_PRODUTO // Categoria do produto (ex: "LENTES", "ARMACOES", "ACESSORIOS")
 }
 
@@ -119,7 +126,8 @@ enum OperadorCondicao {
   NAO_CONTEM    // Campo não contém o valor
   IGUAL_A       // Campo é exatamente igual ao valor
   NAO_IGUAL_A   // Campo é diferente do valor
-  MAIOR_QUE     // Campo é numericamente maior que o valor (para VALOR_VENDA)
+  MAIOR_QUE     // Campo é numericamente maior que 
+o valor (para VALOR_VENDA)
   MENOR_QUE     // Campo é numericamente menor que o valor
 }
 
@@ -144,17 +152,14 @@ model Optica {
 
   /// Endereço completo da ótica (opcional)
   endereco String?
-
-  /// Cidade onde a ótica está localizada
+/// Cidade onde a ótica está localizada
   cidade String?
-
-  /// Estado (UF) onde a ótica está localizada
+/// Estado (UF) onde a ótica está localizada
   estado String?
 
   /// Telefone de contato da ótica
   telefone String?
-
-  /// Email de contato da ótica
+/// Email de contato da ótica
   email String?
 
   /// Indica se a ótica está ativa no sistema
@@ -167,9 +172,9 @@ model Optica {
 
   /// ID da ótica Matriz (se esta ótica for uma Filial)
   matrizId String?
-
-  /// Referência à ótica Matriz (apenas para Filiais)
-  matriz Optica? @relation("MatrizFiliais", fields: [matrizId], references: [id], onDelete: SetNull)
+/// Referência à ótica Matriz (apenas para Filiais)
+  matriz Optica?
+@relation("MatrizFiliais", fields: [matrizId], references: [id], onDelete: SetNull)
 
   /// Lista de óticas Filiais (apenas para Matrizes)
   filiais Optica[] @relation("MatrizFiliais")
@@ -198,7 +203,8 @@ model Optica {
 // ============================================================================
 // MODEL: Usuario (ATUALIZADO - Sprint 4)
 // ============================================================================
-/// Representa todos os usuários do sistema (Admin, Gerente, Vendedor).
+/// Representa todos 
+os usuários do sistema (Admin, Gerente, Vendedor).
 ///
 /// Alterações da Versão 4.1:
 /// - ADICIONADO: campo mapeamentoPlanilhaSalvo (Json, nullable)
@@ -211,20 +217,19 @@ model Usuario {
   email String @unique
 
   /// CPF único (opcional, pode ser necessário para pagamentos)
-  cpf String? @unique
+  cpf String?
+@unique
 
   /// Nome completo do usuário
   nome String
 
   whatsapp String?
-
-  /// Hash da senha (bcrypt, argon2, etc.) - NUNCA armazene senha em texto puro
+/// Hash da senha (bcrypt, argon2, etc.) - NUNCA armazene senha em texto puro
   senhaHash String @db.Text
 
   /// URL do avatar (opcional, para perfil)
   avatarUrl String?
-
-  /// Papel do usuário no sistema (ADMIN, GERENTE, VENDEDOR)
+/// Papel do usuário no sistema (ADMIN, GERENTE, VENDEDOR)
   papel PapelUsuario
 
   /// Status do usuário no fluxo de aprovação (PENDENTE, ATIVO, BLOQUEADO)
@@ -233,28 +238,28 @@ model Usuario {
   // --- Campos de Gamificação (apenas para VENDEDOR) ---
 
   /// Saldo de Moedinhas EPS (moeda virtual interna) disponível para resgate de prêmios.
-  /// SUBTRAI ao resgatar prêmios. NÃO afeta o ranking.
+/// SUBTRAI ao resgatar prêmios. NÃO afeta o ranking.
   saldoMoedinhas Int @default(0)
 
   /// Total de Moedinhas EPS acumuladas ao longo do tempo (base do ranking).
-  /// NUNCA subtrai, sempre cresce. Define posição no ranking global.
-  rankingMoedinhas Int @default(0)
+/// NUNCA subtrai, sempre cresce. Define posição no ranking global.
+rankingMoedinhas Int @default(0)
 
   /// Nível de gamificação atual (atualizado baseado em rankingMoedinhas)
   nivel NivelVendedor @default(BRONZE)
 
   // --- Campos para Reset de Senha ---
 
-  /// Hash do token de reset de senha (SHA-256)
-  tokenResetarSenha String? @unique
+  /// Hash do token de reset de senha (SHA-256).
+  /// REMOVIDA restrição @unique para permitir múltiplos valores NULL (Princípio 5.5).
+  tokenResetarSenha String?
 
   /// Data/hora de expiração do token de reset
   tokenResetarSenhaExpira DateTime?
-
-  // --- Campos para Validação de Vendas (Admin) - Sprint 4 ---
+// --- Campos para Validação de Vendas (Admin) - Sprint 4 ---
 
   /// Armazena as preferências de mapeamento de colunas da planilha salvas pelo Admin.
-  /// Estrutura JSON esperada:
+/// Estrutura JSON esperada:
   /// {
   ///   "Coluna A": "NOME_PRODUTO",
   ///   "Coluna B": "CODIGO_PRODUTO",
@@ -262,22 +267,20 @@ model Usuario {
   ///   "Coluna D": "NUMERO_PEDIDO"
   /// }
   mapeamentoPlanilhaSalvo Json?
-
-  // --- Relação com Ótica Parceira ---
+// --- Relação com Ótica Parceira ---
 
   /// ID da ótica à qual este usuário pertence (apenas para GERENTE e VENDEDOR)
   opticaId String?
-
-  /// Referência à Ótica parceira
+/// Referência à Ótica parceira
   optica Optica? @relation("OpticaUsuarios", fields: [opticaId], references: [id], onDelete: SetNull)
 
   // --- Relações de Hierarquia (Gerente <-> Vendedor) ---
 
   /// ID do gerente responsável (apenas para VENDEDOR)
   gerenteId String?
-
-  /// Referência ao Gerente (se este usuário for VENDEDOR)
-  gerente Usuario? @relation("GerenteVendedores", fields: [gerenteId], references: [id], onDelete: SetNull)
+/// Referência ao Gerente (se este usuário for VENDEDOR)
+  gerente Usuario?
+@relation("GerenteVendedores", fields: [gerenteId], references: [id], onDelete: SetNull)
 
   /// Lista de Vendedores gerenciados (se este usuário for GERENTE)
   vendedores Usuario[] @relation("GerenteVendedores")
@@ -302,7 +305,8 @@ model Usuario {
   /// Data de criação do registro
   criadoEm DateTime @default(now())
 
-  /// Data da última atualização
+  /// Data da última 
+atualização
   atualizadoEm DateTime @updatedAt
 
   @@index([email])
@@ -311,7 +315,7 @@ model Usuario {
   @@index([papel])
   @@index([status])
   @@index([opticaId])
-  @@index([tokenResetarSenha])
+  @@index([tokenResetarSenha]) // Mantemos o índice para busca rápida por hash
   @@map("usuarios")
 }
 
@@ -329,20 +333,17 @@ model LogAutenticacao {
 
   /// Email tentado (se aplicável)
   email String?
-
-  /// CPF tentado (se aplicável, sanitizado)
+/// CPF tentado (se aplicável, sanitizado)
   cpf String?
 
   /// ID do usuário (se login bem-sucedido)
   usuarioId String?
-
-  /// Endereço IP do cliente
+/// Endereço IP do cliente
   ipAddress String
 
   /// User-Agent do navegador
   userAgent String?
-
-  /// Detalhes adicionais em formato JSON
+/// Detalhes adicionais em formato JSON
   detalhes Json?
 
   /// Data/hora da tentativa
@@ -381,12 +382,13 @@ model Campanha {
   /// Data de término da campanha
   dataFim DateTime
 
-  /// Moedinhas virtuais (gamificação) creditadas ao vendedor por cartela completada.
+  /// Moedinhas virtuais (gamificação) creditadas ao vendedor por 
+cartela completada.
   /// Usadas para ranking e resgate de prêmios.
-  moedinhasPorCartela Int
+moedinhasPorCartela Int
 
   /// Pontos equivalentes a R$ (1 Ponto = R$ 1,00) que o vendedor recebe por cartela completada.
-  /// Gera RelatorioFinanceiro para pagamento real.
+/// Gera RelatorioFinanceiro para pagamento real.
   pontosReaisPorCartela Decimal @db.Decimal(10, 2)
 
   /// Status da campanha (ex: "ATIVA", "PAUSADA", "CONCLUIDA")
@@ -405,7 +407,8 @@ model Campanha {
   /// Lista de Óticas (Matriz e/ou Filiais) que são alvo desta campanha (ignorado se paraTodasOticas=true)
   oticasAlvo Optica[] @relation("CampanhasOticas")
 
-  /// Regras de cartelas desta campanha (Cartela 1, 2, 3, etc.)
+  
+/// Regras de cartelas desta campanha (Cartela 1, 2, 3, etc.)
   cartelas RegraCartela[]
 
   /// Envios de venda vinculados a esta campanha
@@ -441,8 +444,7 @@ model RegraCartela {
 
   /// Descrição da cartela (ex: "Cartela Bronze - Produtos Básicos")
   descricao String?
-
-  /// ID da campanha à qual esta cartela pertence
+/// ID da campanha à qual esta cartela pertence
   campanhaId String
 
   /// Referência à campanha
@@ -484,7 +486,8 @@ model RequisitoCartela {
   /// são considerados "relacionados" (ex: "Lentes X" ordem=1 em todas as cartelas)
   ordem Int
 
-  /// ID da regra de cartela à qual este requisito pertence
+  /// ID da 
+regra de cartela à qual este requisito pertence
   regraCartelaId String
 
   /// Referência à regra de cartela
@@ -541,7 +544,8 @@ model CondicaoRequisito {
 }
 
 // ============================================================================
-// MODEL: EnvioVenda
+// 
+MODEL: EnvioVenda
 // ============================================================================
 /// Representa uma submissão de venda feita pelo vendedor.
 model EnvioVenda {
@@ -560,17 +564,18 @@ model EnvioVenda {
   // --- Campos de Log (preenchidos pelo Admin) ---
 
   /// Motivo da rejeição (se status = REJEITADO)
-  motivoRejeicao String? @db.Text
+  motivoRejeicao String?
+@db.Text
 
   /// Informações sobre conflito/duplicata (se status = CONFLITO_MANUAL)
-  infoConflito String? @db.Text
+  infoConflito String?
+@db.Text
 
   // --- Campos de Alocação (preenchidos pelo robô de alocação) ---
 
   /// Número da cartela na qual este envio foi alocado (1, 2, 3, ...)
   numeroCartelaAtendida Int?
-
-  /// Data/hora da validação e alocação
+/// Data/hora da validação e alocação
   dataValidacao DateTime?
 
   // --- Relações ---
@@ -594,7 +599,8 @@ model EnvioVenda {
   requisito RequisitoCartela @relation(fields: [requisitoId], references: [id], onDelete: Restrict)
 
   /// Data de criação do registro
-  criadoEm DateTime @default(now())
+  criadoEm DateTime 
+@default(now())
 
   /// Data da última atualização
   atualizadoEm DateTime @updatedAt
@@ -623,10 +629,9 @@ model Premio {
 
   /// URL da imagem do prêmio
   imageUrl String?
-
-  /// Custo em Moedinhas EPS (moeda virtual) necessário para resgatar este prêmio.
+/// Custo em Moedinhas EPS (moeda virtual) necessário para resgatar este prêmio.
   /// Deduzido do saldoMoedinhas do vendedor ao resgatar.
-  custoMoedinhas Int
+custoMoedinhas Int
 
   /// Quantidade disponível em estoque
   estoque Int @default(0)
@@ -666,7 +671,8 @@ model ResgatePremio {
   dataAtualizacao DateTime @updatedAt
 
   /// Motivo do cancelamento (preenchido apenas se status = CANCELADO)
-  motivoCancelamento String? @db.Text
+  motivoCancelamento String?
+@db.Text
 
   /// ID do vendedor que resgatou
   vendedorId String
@@ -696,7 +702,8 @@ model ResgatePremio {
 // NOVO ENUM - Status do fluxo de logística de resgate de prêmios
 // ============================================================================
 enum StatusResgate {
-  SOLICITADO // Vendedor pediu, aguardando processamento do Admin
+  SOLICITADO // Vendedor pediu, aguardando processamento 
+do Admin
   ENVIADO    // Admin processou e enviou o prêmio
   CANCELADO  // Admin cancelou (ex: falta de estoque) e estornou os pontos
 }
@@ -723,8 +730,7 @@ model RelatorioFinanceiro {
 
   /// Data/hora do pagamento (quando status = PAGO)
   dataPagamento DateTime?
-
-  /// Observações adicionais
+/// Observações adicionais
   observacoes String? @db.Text
 
   /// ID do usuário beneficiário (Vendedor ou Gerente)
@@ -768,8 +774,7 @@ model Notificacao {
 
   /// URL de link opcional (ex: redirecionar para detalhes da venda)
   linkUrl String?
-
-  /// Data/hora de criação da notificação
+/// Data/hora de criação da notificação
   dataCriacao DateTime @default(now())
 
   /// ID do usuário destinatário
@@ -836,9 +841,10 @@ model CartelaConcluida {
 
   /// ID da campanha
   campanhaId    String
-  /// Relação com a campanha
+  /// Relação com 
+a campanha
   campanha      Campanha @relation(fields: [campanhaId], references: [id])
 
   @@unique([vendedorId, campanhaId, numeroCartela], map: "vendedor_campanha_cartela_unica")
+  @@map("cartelas_concluidas")
 }
-

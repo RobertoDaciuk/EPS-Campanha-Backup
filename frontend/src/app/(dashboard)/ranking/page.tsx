@@ -1,13 +1,28 @@
+/**
+ * ============================================================================
+ * RANKING PAGE (CORRIGIDO - Erro de Tipagem do Contexto)
+ * ============================================================================
+ *
+ * Propósito:
+ * Página principal de exibição do ranking geral, pódio e posição individual.
+ *
+ * CORREÇÃO (Q.I. 170 - Tipagem TS2339):
+ * - Corrigida a desestruturação do `useAuth()` para usar o nome de propriedade
+ * correto do contexto (`carregando`) em vez de `isLoading`.
+ *
+ * @module Ranking
+ * ============================================================================
+ */
 'use client'
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import PodiumCard, { PodiumUser } from '../../../components/ranking/PodiumCard'
-import RankingListItem, { RankingUser } from '../../../components/ranking/RankingListItem'
-import PaginationControls from '../../../components/ranking/PaginationControls'
-import SkeletonPodium from '../../../components/ranking/SkeletonPodium'
-import SkeletonRankingList from '../../../components/ranking/SkeletonRankingList'
-import { useAuth } from '../../../contexts/AuthContext'
-import axios from '../../../lib/axios'
+import PodiumCard, { PodiumUser } from '@/components/ranking/PodiumCard' 
+import RankingListItem, { RankingUser } from '@/components/ranking/RankingListItem' 
+import PaginationControls from '@/components/ranking/PaginationControls' 
+import SkeletonPodium from '@/components/ranking/SkeletonPodium' 
+import SkeletonRankingList from '@/components/ranking/SkeletonRankingList' 
+import { useAuth } from '@/contexts/ContextoAutenticacao' 
+import api from '@/lib/axios'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
@@ -21,7 +36,8 @@ interface RankingApiResponse {
 const porPagina = 20
 
 const RankingPage: React.FC = () => {
-  const { usuario, estaAutenticado, isLoading: isAuthLoading } = useAuth()
+  // CORREÇÃO: Usar 'carregando' (nome correto da interface) e renomear para isAuthLoading
+  const { usuario, estaAutenticado, carregando: isAuthLoading } = useAuth()
   const [rankingData, setRankingData] = useState<RankingApiResponse | null>(null)
   const [minhaPosicao, setMinhaPosicao] = useState<number | null>(null)
   const [kpiData, setKpiData] = useState<any>(null) // Dados completos do KPI do vendedor
@@ -46,16 +62,19 @@ const RankingPage: React.FC = () => {
       setIsLoading(true)
       setError(null)
       try {
-        const rankingRes = await axios.get<RankingApiResponse>(`/ranking/geral?pagina=${paginaAtual}&porPagina=${porPagina}`, {
+        const rankingRes = await api.get<RankingApiResponse>(`/ranking/geral?pagina=${paginaAtual}&porPagina=${porPagina}`, {
           signal: aborter.signal,
         })
 
-        const kpiPromise = usuario?.papel === 'VENDEDOR' ? axios.get('/dashboard/vendedor', { signal: aborter.signal }) : Promise.resolve(null)
+        // Usa o endpoint unificado do Dashboard para buscar a posição individual
+        const kpiPromise = usuario?.papel === 'VENDEDOR' ? api.get('/dashboard/kpis', { signal: aborter.signal }) : Promise.resolve(null)
 
         const [rankingResp, kpiResp] = await Promise.all([rankingRes, kpiPromise])
         setRankingData(rankingResp.data)
+        
         if (kpiResp && kpiResp.data) {
-          setKpiData(kpiResp.data) // Salva dados completos do KPI
+          // O backend retorna o objeto KPI completo (ex: {..., posicaoRanking: X})
+          setKpiData(kpiResp.data) 
           if (typeof kpiResp.data.posicaoRanking === 'number') {
             setMinhaPosicao(kpiResp.data.posicaoRanking)
           }
@@ -81,6 +100,13 @@ const RankingPage: React.FC = () => {
 
   const podium = isPrimeiraPagina ? dados.slice(0, 3) : []
   const restante = isPrimeiraPagina ? dados.slice(3) : dados
+
+  // Tratamento da posição para exibição (N/A se 0)
+  const posicaoExibida = minhaPosicao !== null && minhaPosicao > 0 ? `#${minhaPosicao}` : 'N/A';
+  const estiloPosicao = minhaPosicao !== null && minhaPosicao > 0 && minhaPosicao <= 3 
+    ? 'text-yellow-400 border-yellow-400/50 bg-yellow-400/10'
+    : 'text-foreground/80 border-border/50 bg-primary/5';
+
 
   return (
     <div className="space-y-6">
@@ -144,7 +170,7 @@ const RankingPage: React.FC = () => {
               </motion.section>
             )}
 
-            {/* Minha posição (para vendedor) - CORRIGIDO */}
+            {/* Minha posição (para vendedor) - CORRIGIDO: Estilo adaptado */}
             {usuario?.papel === 'VENDEDOR' && minhaPosicao !== null && kpiData && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -160,12 +186,12 @@ const RankingPage: React.FC = () => {
                   {/* Animated Border Glow */}
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 blur-xl opacity-30 -z-20" />
 
-                  {/* Left Section: Position Badge - CORRIGIDO: Centralizado Verticalmente */}
+                  {/* Left Section: Position Badge - CORRIGIDO: Estilo dinâmico */}
                   <div className="flex items-center gap-4 lg:gap-6">
                     <div className="flex flex-col items-center justify-center gap-2 min-w-[80px]">
-                      <div className="relative flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 rounded-2xl bg-primary/10 border border-primary/30 shadow-lg">
+                      <div className={`relative flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 rounded-2xl border ${estiloPosicao} shadow-lg`}>
                         <span className="text-3xl lg:text-4xl font-black text-foreground">
-                          #{minhaPosicao}
+                          {posicaoExibida}
                         </span>
                       </div>
                       <div className="flex flex-col items-center gap-0.5">
@@ -193,7 +219,7 @@ const RankingPage: React.FC = () => {
                     
                     <div className="flex flex-col items-start lg:items-end gap-1">
                       <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
-                        {kpiData.pontosTotais?.toLocaleString('pt-BR') || 0} pts
+                        {kpiData.rankingMoedinhas?.toLocaleString('pt-BR') || 0} pts
                       </span>
                     </div>
                   </div>

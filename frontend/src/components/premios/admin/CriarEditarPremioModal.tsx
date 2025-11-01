@@ -5,16 +5,7 @@ import { Dialog, Transition, Switch } from '@headlessui/react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/axios';
 
-// --- Tipagem ---
-interface PremioAdmin {
-  id?: string;
-  nome: string;
-  descricao: string;
-  custoMoedinhas: number;
-  estoque: number;
-  imageUrl: string | null;
-  ativo: boolean;
-}
+import { PremioAdmin } from '@/types/premio';
 
 interface Props {
   isOpen: boolean;

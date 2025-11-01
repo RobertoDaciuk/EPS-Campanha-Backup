@@ -59,17 +59,9 @@ let EnvioVendaService = EnvioVendaService_1 = class EnvioVendaService {
             where.vendedorId = usuario.id;
         }
         else if (usuario.papel === 'GERENTE') {
-            const equipe = await this.prisma.usuario.findMany({
-                where: { gerenteId: usuario.id },
-                select: { id: true },
-            });
-            const idsEquipe = equipe.map((u) => u.id);
-            if (idsEquipe.length) {
-                where.vendedorId = { in: idsEquipe };
-            }
-            else {
-                where.vendedorId = '-';
-            }
+            where.vendedor = {
+                gerenteId: usuario.id,
+            };
         }
         this.logger.log(`[LISTAR] Papel: ${usuario.papel}. Params: ${JSON.stringify(where)}`);
         return this.prisma.envioVenda.findMany({

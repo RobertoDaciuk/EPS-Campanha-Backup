@@ -1,10 +1,14 @@
 /**
  * ============================================================================
- * CARD: ALTERAR SENHA (Implementado) - Princípios 1, 3, 4
+ * CARD: ALTERAR SENHA (REFATORADO - Validação Harmonizada)
  * ============================================================================
  *
  * Propósito:
  * Formulário para atualização da senha do usuário.
+ *
+ * CORREÇÃO (Princípio 5.2 - Validação):
+ * - Harmonizada a RegEx de validação da nova senha para ser idêntica
+ * à regra mestra do DTO do backend (`atualizar-senha.dto.ts`).
  *
  * Implementação:
  * - Envia dados para `PATCH /api/perfil/minha-senha`.
@@ -36,9 +40,10 @@ const senhaSchema = z
     novaSenha: z
       .string()
       .min(8, "A nova senha deve ter no mínimo 8 caracteres.")
+      // REGEX HARMONIZADA: Garante 1 maiúscula, 1 minúscula, 1 número, e 1 dos caracteres especiais [@$!%*?&#]
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/,
-        "Deve conter maiúscula, minúscula, número e caractere especial.",
+        "Deve conter pelo menos 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 caractere especial (@$!%*?&#).",
       ),
     confirmarNovaSenha: z.string(),
   })
@@ -91,7 +96,13 @@ export function AlterarSenhaCard() {
       console.error("Erro ao atualizar senha:", erro);
       const msgErro =
         erro.response?.data?.message ?? "Falha ao atualizar senha.";
-      toast.error(msgErro, { id: "senha-toast" });
+      
+      // Tratamento de array de erros do DTO (se o ValidationPipe retornar array)
+      if (Array.isArray(msgErro)) {
+        toast.error(msgErro.join(", "), { id: "senha-toast" });
+      } else {
+        toast.error(msgErro, { id: "senha-toast" });
+      }
     } finally {
       setEstaSalvando(false);
     }

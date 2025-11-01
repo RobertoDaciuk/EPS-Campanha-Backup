@@ -1,14 +1,15 @@
 /**
  * ============================================================================
- * KPIS VENDEDOR (Corrigido) - Princípios 1, 3, 4
+ * KPIS VENDEDOR (Corrigido - Lógica de Ranking) - Princípios 1, 3, 4
  * ============================================================================
  *
  * Propósito:
  * Renderiza o grid de KPIs específico para o perfil VENDEDOR.
  *
- * CORREÇÃO (Princípio 1 - Preventiva):
- * - Adicionada verificação `(?? 0)` em todos os valores numéricos
- * antes de chamar `toLocaleString` para garantir robustez.
+ * CORREÇÃO (Q.I. 170 - Lógica de Ranking):
+ * - Refatorada a formatação e exibição da `posicaoRanking`.
+ * - Se `posicaoRanking` é 0 (Não Ranqueado), exibe "N/A" ao invés de "0º".
+ * - Ajustada a lógica de cor do card para usar "warning" apenas para o Top 3.
  *
  * @module Dashboard
  * ============================================================================
@@ -55,8 +56,14 @@ const containerVariantes = {
 export function KpisVendedor({ dados }: KpisVendedorProps) {
   if (!dados) return null;
 
-  // Formata a posição para ordinal (1º, 2º, 3º...)
-  const posicaoFormatada = `${dados.posicaoRanking ?? 0}º`;
+  const posicaoSegura = dados.posicaoRanking ?? 0;
+
+  /**
+   * CORREÇÃO DE LÓGICA (Princípio 1):
+   * Se a posição for 0, o usuário não está ranqueado.
+   * Exibir "N/A" ou "Não Ranqueado" melhora a UX.
+   */
+  const posicaoFormatada = posicaoSegura === 0 ? "N/A" : `${posicaoSegura}º`;
 
   return (
     <motion.div
@@ -70,7 +77,8 @@ export function KpisVendedor({ dados }: KpisVendedorProps) {
         valor={posicaoFormatada}
         descricao="Sua posição geral"
         Icone={Trophy}
-        cor={(dados.posicaoRanking ?? 0) <= 3 && (dados.posicaoRanking ?? 0) > 0 ? "warning" : "primary"}
+        // Corrigido: Aplica 'warning' apenas se posição for entre 1 e 3
+        cor={posicaoSegura > 0 && posicaoSegura <= 3 ? "warning" : "primary"}
       />
       <KpiCard
         titulo="Saldo (Moedinhas)"

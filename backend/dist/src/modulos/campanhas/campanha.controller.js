@@ -44,9 +44,9 @@ let CampanhaController = CampanhaController_1 = class CampanhaController {
         this.logger.log(`[PATCH] [ADMIN] Atualizando campanha: ${id}`);
         return this.campanhaService.atualizar(id, dto);
     }
-    async remover(id) {
+    async remover(id, req) {
         this.logger.log(`[DELETE] [ADMIN] Removendo campanha: ${id}`);
-        return this.campanhaService.remover(id);
+        return this.campanhaService.remover(id, req.user);
     }
 };
 exports.CampanhaController = CampanhaController;
@@ -92,8 +92,9 @@ __decorate([
     (0, papeis_decorator_1.Papeis)('ADMIN'),
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], CampanhaController.prototype, "remover", null);
 exports.CampanhaController = CampanhaController = CampanhaController_1 = __decorate([

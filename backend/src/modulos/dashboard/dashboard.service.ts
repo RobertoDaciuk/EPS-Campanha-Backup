@@ -7,15 +7,17 @@
  * Serviço responsável por agregar e calcular os Key Performance Indicators (KPIs)
  * para os dashboards de cada perfil de usuário (Admin, Gerente, VENDEDOR).
  *
- * CORREÇÃO (Erro KpisGerente.tsx):
+ * CORREÇÃO (Q.I. 170 - Consistência de Tipagem):
+ * - Adicionada conversão explícita para Number em `totalMoedinhasTime`
+ * no `getKpisGerente` para garantir que o resultado da agregação (que pode
+ * ser BigInt no PostgreSQL) seja serializado corretamente no JSON de saída.
+ *
+ * CORREÇÃO (Anterior):
  * - Reforçada a sanitização de saída no `getKpisGerente`. A agregação
  * `_sum` pode retornar `null`. Garantimos que `totalMoedinhasTime`
  * seja `0` se a agregação falhar ou for nula.
- *
- * CORREÇÃO (Pendente - Q.I. 170):
  * - Corrigida a tipagem de `posicaoRankingResult` no `getKpisVendedor`.
- * O cast `(posicaoRankingResult as PosicaoRanking[])` estava incorreto e
- * foi removido; o tipo de `posicaoRanking` foi ajustado para `bigint`.
+ * O resultado de `$queryRaw` é tratado como BigInt e convertido para Number.
  *
  * @module DashboardModule
  * ============================================================================
@@ -39,6 +41,7 @@ export class DashboardService {
 
   /**
    * Obtém os KPIs agregados para o dashboard do ADMIN.
+   * * Usa $transaction para garantir atomicidade (Princípio 5.1).
    */
   async getKpisAdmin() {
     const [
@@ -71,8 +74,8 @@ export class DashboardService {
 
   /**
    * Obtém os KPIs agregados para o dashboard do GERENTE.
-   *
-   * @param usuarioId - O ID do gerente autenticado.
+   * * Usa $transaction para garantir atomicidade (Princípio 5.1).
+   * @param usuarioId - O ID do gerente autenticado (Princípio 5.5).
    */
   async getKpisGerente(usuarioId: string) {
     const [
@@ -94,7 +97,7 @@ export class DashboardService {
           status: 'EM_ANALISE',
         },
       }),
-      // KPI 3: Comissão pendente
+      // KPI 3: Comissão pendente (Decimal)
       this.prisma.relatorioFinanceiro.aggregate({
         _sum: {
           valor: true,
@@ -105,7 +108,7 @@ export class DashboardService {
           status: 'PENDENTE',
         },
       }),
-      // KPI 4: Total de moedinhas da equipe
+      // KPI 4: Total de moedinhas da equipe (Int/BigInt)
       this.prisma.usuario.aggregate({
         _sum: {
           rankingMoedinhas: true,
@@ -116,19 +119,21 @@ export class DashboardService {
       }),
     ]);
 
-    // CORREÇÃO: Garantia explícita de que os valores são numéricos
+    // CORREÇÃO: Garantia explícita de que os valores são numéricos e tratados (Princípio 1)
     return {
       totalVendedores: totalVendedores ?? 0,
       vendasTimeAnalise: vendasTimeAnalise ?? 0,
+      // Converte Decimal para Number
       comissaoPendente: comissaoPendente._sum.valor?.toNumber() ?? 0,
-      totalMoedinhasTime: totalMoedinhasTime._sum.rankingMoedinhas ?? 0,
+      // Converte resultado de agregação (potencialmente BigInt) para Number
+      totalMoedinhasTime: Number(totalMoedinhasTime._sum.rankingMoedinhas ?? 0),
     };
   }
 
   /**
    * Obtém os KPIs agregados para o dashboard do VENDEDOR.
-   *
-   * @param usuarioId - O ID do vendedor autenticado.
+   * * Usa $transaction para garantir atomicidade (Princípio 5.1).
+   * @param usuarioId - O ID do vendedor autenticado (Princípio 5.5).
    */
   async getKpisVendedor(usuarioId: string) {
     const [
@@ -181,8 +186,7 @@ export class DashboardService {
       ),
     ]);
 
-    // CORREÇÃO (Q.I. 170): O resultado de $queryRaw é um array.
-    // O resultado de ROW_NUMBER() é um BigInt (posicao: bigint).
+    // O resultado de ROW_NUMBER() é um BigInt (posicao: bigint) e precisa ser convertido.
     const posicaoRanking =
       posicaoRankingResult.length > 0
         ? Number(posicaoRankingResult[0].posicao)

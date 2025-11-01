@@ -26,6 +26,15 @@ let CampanhaService = CampanhaService_1 = class CampanhaService {
         if (dataFim <= dataInicio) {
             throw new common_1.BadRequestException('A data de término deve ser posterior à data de início');
         }
+        for (const cartelaDto of dto.cartelas) {
+            const ordensEncontradas = new Set();
+            for (const requisitoDto of cartelaDto.requisitos) {
+                if (ordensEncontradas.has(requisitoDto.ordem)) {
+                    throw new common_1.BadRequestException(`A Cartela ${cartelaDto.numeroCartela} possui requisitos com a Ordem (${requisitoDto.ordem}) duplicada. A Ordem deve ser única dentro da mesma cartela.`);
+                }
+                ordensEncontradas.add(requisitoDto.ordem);
+            }
+        }
         return this.prisma.$transaction(async (tx) => {
             const dadosCampanha = {
                 titulo: dto.titulo,
@@ -39,7 +48,7 @@ let CampanhaService = CampanhaService_1 = class CampanhaService {
                 paraTodasOticas: dto.paraTodasOticas ?? false,
             };
             if (!dadosCampanha.paraTodasOticas && dto.oticasAlvoIds && dto.oticasAlvoIds.length > 0) {
-                const countOticas = await this.prisma.optica.count({
+                const countOticas = await tx.optica.count({
                     where: { id: { in: dto.oticasAlvoIds }, ativa: true },
                 });
                 if (countOticas !== dto.oticasAlvoIds.length) {
@@ -203,9 +212,9 @@ let CampanhaService = CampanhaService_1 = class CampanhaService {
         this.logger.log(`✅ Campanha atualizada: ${campanha.titulo}`);
         return campanha;
     }
-    async remover(id) {
+    async remover(id, usuario) {
         this.logger.log(`Removendo campanha: ${id}`);
-        await this.buscarPorId(id);
+        await this.buscarPorId(id, usuario);
         const campanha = await this.prisma.campanha.delete({
             where: { id },
         });

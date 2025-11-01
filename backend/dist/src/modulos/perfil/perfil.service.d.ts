@@ -6,16 +6,14 @@ export declare class PerfilService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     meuPerfil(usuarioId: string): Promise<{
-        id: string;
         nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
-        optica: {
-            cnpj: string;
-            nome: string;
-        };
         cpf: string;
+        optica: {
+            nome: string;
+            cnpj: string;
+        };
+        id: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -24,14 +22,14 @@ export declare class PerfilService {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: Prisma.JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizarMeuPerfil(usuarioId: string, dto: AtualizarPerfilDto): Promise<{
-        id: string;
         nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        id: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -40,14 +38,14 @@ export declare class PerfilService {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: Prisma.JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
     atualizarSenha(usuarioId: string, dto: AtualizarSenhaDto): Promise<{
-        id: string;
         nome: string;
         email: string;
-        criadoEm: Date;
-        atualizadoEm: Date;
         cpf: string;
+        id: string;
         whatsapp: string;
         avatarUrl: string;
         papel: import(".prisma/client").$Enums.PapelUsuario;
@@ -56,5 +54,7 @@ export declare class PerfilService {
         rankingMoedinhas: number;
         nivel: import(".prisma/client").$Enums.NivelVendedor;
         mapeamentoPlanilhaSalvo: Prisma.JsonValue;
+        criadoEm: Date;
+        atualizadoEm: Date;
     }>;
 }

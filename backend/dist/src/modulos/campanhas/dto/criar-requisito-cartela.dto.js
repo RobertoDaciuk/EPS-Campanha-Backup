@@ -18,6 +18,12 @@ class CriarRequisitoCartelaDto {
 }
 exports.CriarRequisitoCartelaDto = CriarRequisitoCartelaDto;
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (typeof value === 'string') {
+            return value.trim().replace(/<[^>]*>/g, '').replace(/&/g, '&amp;');
+        }
+        return value;
+    }),
     (0, class_validator_1.IsString)({ message: 'A descrição deve ser uma string' }),
     (0, class_validator_1.IsNotEmpty)({ message: 'A descrição não pode estar vazia' }),
     __metadata("design:type", String)

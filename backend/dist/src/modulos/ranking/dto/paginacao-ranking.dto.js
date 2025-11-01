@@ -13,24 +13,20 @@ exports.PaginacaoRankingDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class PaginacaoRankingDto {
-    constructor() {
-        this.pagina = 1;
-        this.porPagina = 20;
-    }
 }
 exports.PaginacaoRankingDto = PaginacaoRankingDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Min)(1, { message: 'A página deve ser um número inteiro maior ou igual a 1.' }),
     __metadata("design:type", Number)
 ], PaginacaoRankingDto.prototype, "pagina", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Min)(1, { message: 'A quantidade por página deve ser um número inteiro maior ou igual a 1.' }),
     __metadata("design:type", Number)
 ], PaginacaoRankingDto.prototype, "porPagina", void 0);
 //# sourceMappingURL=paginacao-ranking.dto.js.map

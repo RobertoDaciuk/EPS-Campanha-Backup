@@ -26,11 +26,11 @@
  *
  * Segurança (NOVO):
  * - Throttler: Limita requisições para prevenir brute force e DoS
- *   - 10 requisições por minuto por IP (padrão global)
- *   - Rotas específicas podem sobrescrever com @Throttle()
- * - JwtAuthGuard: Protege TODAS as rotas por padrão
- *   - Rotas públicas usam decorator @Public() para bypass
- *   - Garante que nenhum endpoint fique desprotegido por esquecimento
+ * - 10 requisições por minuto por IP (padrão global)
+ * - Rotas específicas podem sobrescrever com @Throttle()
+ * - JwtAuthGuard: Protege TODAS as rotas por padrão (Secure by Default)
+ * - Rotas públicas usam decorator @Public() para bypass
+ * - Garante que nenhum endpoint fique desprotegido por esquecimento
  *
  * @module AppModule
  * ============================================================================
@@ -63,15 +63,13 @@ import { JwtAuthGuard } from './modulos/comum/guards/jwt-auth.guard';
 
 /**
  * AppModule - Módulo raiz da aplicação.
- * 
- * Configura todos os módulos de feature, serviços globais e guards de segurança.
+ * * Configura todos os módulos de feature, serviços globais e guards de segurança.
  */
 @Module({
   imports: [
     /**
      * ConfigModule: Carrega variáveis de ambiente do arquivo .env.
-     * 
-     * isGlobal: true permite acessar ConfigService em qualquer módulo
+     * * isGlobal: true permite acessar ConfigService em qualquer módulo
      * sem precisar importar ConfigModule explicitamente.
      */
     ConfigModule.forRoot({
@@ -80,20 +78,16 @@ import { JwtAuthGuard } from './modulos/comum/guards/jwt-auth.guard';
 
     /**
      * ThrottlerModule: Configura Rate Limiting global (NOVO - Vulnerabilidade #3).
-     * 
-     * Previne ataques de:
+     * * Previne ataques de:
      * - Brute Force: Tentativas ilimitadas de adivinhação de senhas
      * - DoS (Denial of Service): Sobrecarga do servidor com requisições
      * - Spam: Múltiplos registros/envios em curto período
-     * 
-     * Configuração Padrão:
+     * * Configuração Padrão:
      * - ttl: 60000ms (1 minuto) - Janela de tempo para contagem de requisições
      * - limit: 10 - Máximo de 10 requisições por minuto por IP
-     * 
-     * Rotas Específicas podem Sobrescrever:
+     * * Rotas Específicas podem Sobrescrever:
      * @Throttle({ default: { limit: 3, ttl: 60000 } })
-     * 
-     * Rotas podem Desabilitar:
+     * * Rotas podem Desabilitar:
      * @SkipThrottle()
      */
     ThrottlerModule.forRoot([
@@ -133,8 +127,7 @@ import { JwtAuthGuard } from './modulos/comum/guards/jwt-auth.guard';
 
   /**
    * Providers: Serviços e Guards globais.
-   * 
-   * NOVO (Sprint 18.2 - Segurança Avançada):
+   * * NOVO (Sprint 18.2 - Segurança Avançada):
    * - ThrottlerGuard: Aplica Rate Limiting em TODAS as rotas
    * - JwtAuthGuard: Aplica autenticação JWT em TODAS as rotas (Secure by Default)
    */

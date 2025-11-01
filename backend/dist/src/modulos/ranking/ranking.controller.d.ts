@@ -7,11 +7,11 @@ export declare class RankingController {
     getRankingGeral(paginacaoDto: PaginacaoRankingDto): Promise<{
         dados: {
             posicao: number;
-            id: string;
             nome: string;
             optica: {
                 nome: string;
             };
+            id: string;
             avatarUrl: string;
             rankingMoedinhas: number;
             nivel: import(".prisma/client").$Enums.NivelVendedor;

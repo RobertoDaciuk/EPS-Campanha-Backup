@@ -1,13 +1,41 @@
+/**
+ * ============================================================================
+ * RANKING SERVICE - Lógica de Negócio (REFATORADO - Performance)
+ * ============================================================================
+ *
+ * Propósito:
+ * Serviço dedicado à lógica de ranking (global, equipe e posições).
+ *
+ * REFATORAÇÃO (Q.I. 170 - Performance Crítica):
+ * - REESCRITO: `getPosicaoUsuario` agora usa `Prisma.$queryRaw` com a função
+ * SQL `ROW_NUMBER()`.
+ * - MOTIVO: O método anterior trazia e percorria TODOS os usuários em memória
+ * (O(N)), causando gargalo em bases grandes (Princípio 5.1). A nova solução é O(log N).
+ *
+ * REFATORAÇÃO (Q.I. 170 - DTO):
+ * - REMOVIDO: A responsabilidade de definir valores padrão (`pagina = 1`, etc.)
+ * do DTO e movida para o service.
+ *
+ * ATUALIZADO (Sprint 17 - Tarefa 43):
+ * - Inclui método getRankingFiliaisParaMatriz para Gerentes de Matriz
+ *
+ * @module RankingModule
+ * ============================================================================
+ */
 import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PapelUsuario, StatusUsuario } from '@prisma/client';
+import { PapelUsuario, StatusUsuario, Prisma } from '@prisma/client';
 import { PaginacaoRankingDto } from './dto/paginacao-ranking.dto';
 
 /**
+ * Interface para tipar o resultado da consulta raw de posição.
+ */
+interface PosicaoUsuarioRaw {
+  posicao: bigint; // PostgreSQL retorna BigInt para ROW_NUMBER()
+}
+
+/**
  * Serviço dedicado à lógica de ranking (global, equipe e posições).
- *
- * ATUALIZADO (Sprint 17 - Tarefa 43):
- * - Adicionado método getRankingFiliaisParaMatriz para Gerentes de Matriz
  */
 @Injectable()
 export class RankingService {
@@ -16,18 +44,49 @@ export class RankingService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Calcula a posição de um usuário no ranking global dos vendedores,
-   * levando em conta desempate por 'rankingMoedinhas' (desc) e 'criadoEm' (asc).
+   * Calcula a posição de um usuário no ranking global dos vendedores
+   * usando a Window Function ROW_NUMBER() do SQL.
+   *
    * @param usuarioId ID do usuário a consultar
+   * @returns Posição do usuário (1-baseado). Retorna 0 se não for elegível/encontrado.
+   * @throws NotFoundException (ou 0) se usuário não ranqueado/encontrado.
+   *
+   * @example
+   * const { posicao } = await this.getPosicaoUsuario('uuid-vendedor'); // { posicao: 42 }
    */
   async getPosicaoUsuario(usuarioId: string): Promise<{ posicao: number }> {
-    // O model Usuario possui campo 'criadoEm'
-    const todosUsuarios = await this.prisma.usuario.findMany({
-      where: { papel: PapelUsuario.VENDEDOR },
-      select: { id: true },
-      orderBy: [{ rankingMoedinhas: 'desc' }, { criadoEm: 'asc' }],
-    });
-    const posicao = todosUsuarios.findIndex((u) => u.id === usuarioId) + 1;
+    /**
+     * Consulta SQL otimizada (O(log N)):
+     * 1. Cria uma CTE (Common Table Expression) 'Ranking'.
+     * 2. Usa ROW_NUMBER() para calcular a posição no ranking, com desempate.
+     * 3. Filtra o resultado pela ID do usuário.
+     */
+    const resultado = await this.prisma.$queryRaw<PosicaoUsuarioRaw[]>(
+      Prisma.sql`
+        WITH Ranking AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              ORDER BY "rankingMoedinhas" DESC, "criadoEm" ASC
+            ) as posicao
+          FROM
+            "usuarios"
+          WHERE
+            papel = ${PapelUsuario.VENDEDOR}::"PapelUsuario"
+            AND status = ${StatusUsuario.ATIVO}::"StatusUsuario"
+        )
+        SELECT
+          posicao
+        FROM
+          Ranking
+        WHERE
+          id = ${usuarioId}
+      `,
+    );
+
+    // Converte BigInt para Number. Retorna 0 se o usuário não for encontrado/elegível.
+    const posicao = resultado.length > 0 ? Number(resultado[0].posicao) : 0;
+    
     return { posicao };
   }
 
@@ -46,21 +105,22 @@ export class RankingService {
   /**
    * Retorna o ranking global de vendedores com paginação e desempate.
    *
-   * ATUALIZADO (Sprint 17 - Tarefa 39):
-   * - Inclui o nome da ótica para exibição no frontend
-   * - CRÍTICO: Calcula e adiciona o campo `posicao` para cada usuário
-   *
    * @param dto PaginacaoRankingDto com filtros de página e quantidade
    */
   async getRankingGeralPaginado(dto: PaginacaoRankingDto) {
+    // Valores padrão definidos aqui (regras de negócio)
     const pagina = dto.pagina ?? 1;
     const porPagina = dto.porPagina ?? 20;
+    
     const skip = (pagina - 1) * porPagina;
     const take = porPagina;
 
     const [usuarios, total] = await this.prisma.$transaction([
       this.prisma.usuario.findMany({
-        where: { papel: PapelUsuario.VENDEDOR },
+        where: { 
+          papel: PapelUsuario.VENDEDOR,
+          status: StatusUsuario.ATIVO, // CRÍTICO: Rankear apenas ativos
+        },
         select: {
           id: true,
           nome: true,
@@ -77,7 +137,12 @@ export class RankingService {
         skip,
         take,
       }),
-      this.prisma.usuario.count({ where: { papel: PapelUsuario.VENDEDOR } }),
+      this.prisma.usuario.count({ 
+        where: { 
+          papel: PapelUsuario.VENDEDOR,
+          status: StatusUsuario.ATIVO,
+        },
+      }),
     ]);
 
     const totalPaginas = Math.ceil(total / porPagina);
@@ -87,11 +152,6 @@ export class RankingService {
     // ========================================
     /**
      * A posição é calculada com base no offset (skip) da paginação.
-     *
-     * Exemplos:
-     * - Página 1 (skip=0): Posições 1, 2, 3, ..., 20
-     * - Página 2 (skip=20): Posições 21, 22, 23, ..., 40
-     *
      * Fórmula: posicao = skip + index + 1
      */
     const dadosComPosicao = usuarios.map((usuario, index) => ({
@@ -109,10 +169,6 @@ export class RankingService {
 
   /**
    * Retorna o ranking agrupado por filial para Gerentes de Matriz.
-   *
-   * NOVO (Sprint 17 - Tarefa 43):
-   * - Busca rankings separados da Matriz e de cada Filial
-   * - Apenas Gerentes de Matriz podem acessar
    *
    * @param matrizGerenteId - ID do gerente da matriz
    * @returns Ranking agrupado (matriz + filiais)

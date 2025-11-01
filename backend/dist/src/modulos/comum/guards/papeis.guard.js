@@ -12,10 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PapeisGuard = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
+const config_1 = require("@nestjs/config");
 const papeis_decorator_1 = require("../decorators/papeis.decorator");
 let PapeisGuard = class PapeisGuard {
-    constructor(reflector) {
+    constructor(reflector, configService) {
         this.reflector = reflector;
+        this.configService = configService;
     }
     canActivate(context) {
         const papeisNecessarios = this.reflector.getAllAndOverride(papeis_decorator_1.PAPEIS_CHAVE, [context.getHandler(), context.getClass()]);
@@ -29,8 +31,17 @@ let PapeisGuard = class PapeisGuard {
         }
         const temPapelNecessario = papeisNecessarios.some((papel) => user.papel === papel);
         if (!temPapelNecessario) {
-            throw new common_1.ForbiddenException(`Acesso negado. Papel necessário: ${papeisNecessarios.join(' ou ')}. ` +
-                `Você possui o papel: ${user.papel}.`);
+            const ambienteDesenvolvimento = this.configService.get('NODE_ENV') !== 'production';
+            let mensagemErro;
+            if (ambienteDesenvolvimento) {
+                mensagemErro =
+                    `Acesso negado. Papel necessário: ${papeisNecessarios.join(' ou ')}. ` +
+                        `Você possui o papel: ${user.papel}.`;
+            }
+            else {
+                mensagemErro = 'Acesso negado por falta de permissão.';
+            }
+            throw new common_1.ForbiddenException(mensagemErro);
         }
         return true;
     }
@@ -38,6 +49,7 @@ let PapeisGuard = class PapeisGuard {
 exports.PapeisGuard = PapeisGuard;
 exports.PapeisGuard = PapeisGuard = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [core_1.Reflector])
+    __metadata("design:paramtypes", [core_1.Reflector,
+        config_1.ConfigService])
 ], PapeisGuard);
 //# sourceMappingURL=papeis.guard.js.map

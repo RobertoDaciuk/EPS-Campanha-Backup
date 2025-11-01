@@ -31,8 +31,8 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)({ message: 'O WhatsApp deve ser uma string.' }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^\d{12,13}$/, {
-        message: 'WhatsApp deve conter DDI, DDD e número, totalizando 12 ou 13 dígitos (apenas números).',
+    (0, class_validator_1.Matches)(/^\d{11,12}$/, {
+        message: 'WhatsApp deve conter DDD e número, totalizando 11 ou 12 dígitos (apenas números).',
     }),
     __metadata("design:type", String)
 ], AtualizarPerfilDto.prototype, "whatsapp", void 0);

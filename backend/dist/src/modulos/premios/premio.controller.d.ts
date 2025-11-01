@@ -5,8 +5,8 @@ export declare class PremioController {
     private readonly premioService;
     constructor(premioService: PremioService);
     listar(): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -16,8 +16,8 @@ export declare class PremioController {
         ativo: boolean;
     }[]>;
     buscarPorId(id: string): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -27,8 +27,8 @@ export declare class PremioController {
         ativo: boolean;
     }>;
     listarTodosAdmin(): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -38,8 +38,8 @@ export declare class PremioController {
         ativo: boolean;
     }[]>;
     criar(dto: CriarPremioDto): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -49,8 +49,8 @@ export declare class PremioController {
         ativo: boolean;
     }>;
     atualizar(id: string, dto: AtualizarPremioDto): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -60,8 +60,8 @@ export declare class PremioController {
         ativo: boolean;
     }>;
     remover(id: string): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;
@@ -71,8 +71,8 @@ export declare class PremioController {
         ativo: boolean;
     }>;
     uploadImagem(id: string, file: Express.Multer.File): Promise<{
-        id: string;
         nome: string;
+        id: string;
         criadoEm: Date;
         atualizadoEm: Date;
         descricao: string;

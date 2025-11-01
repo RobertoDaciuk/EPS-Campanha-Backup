@@ -1,9 +1,10 @@
 import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { PapelUsuario } from '@prisma/client';
 interface JwtPayload {
     sub: string;
     email: string;
-    papel: string;
+    papel: PapelUsuario;
     iat?: number;
     exp?: number;
 }
@@ -16,7 +17,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
     validate(payload: JwtPayload): Promise<{
         id: string;
         email: string;
-        papel: string;
+        papel: import(".prisma/client").$Enums.PapelUsuario;
     }>;
 }
 export {};

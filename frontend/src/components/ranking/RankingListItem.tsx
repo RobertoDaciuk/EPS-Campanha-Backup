@@ -2,13 +2,14 @@
 import React from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Crown, Trophy, Award, Sparkles, TrendingUp } from 'lucide-react'
+import { Crown, Trophy, Award, Sparkles, TrendingUp, Star } from 'lucide-react'
 
 export interface RankingUser {
   id: string
   nome: string
   avatarUrl?: string | null
-  rankingMoedinhas: number
+  rankingMoedinhas?: number
+  rankingPontosReais?: number
   nivel?: string
   posicao: number
   optica?: {
@@ -18,6 +19,7 @@ export interface RankingUser {
 
 interface Props {
   user: RankingUser
+  metric: 'moedinhas' | 'pontos'
   isCurrentUser?: boolean
 }
 
@@ -60,8 +62,15 @@ const NivelBadge: React.FC<{ nivel?: string }> = ({ nivel }) => {
   )
 }
 
-const RankingListItem: React.FC<Props> = ({ user, isCurrentUser = false }) => {
-  const { posicao, nome, avatarUrl, rankingMoedinhas, nivel, optica } = user
+const RankingListItem: React.FC<Props> = ({ user, metric, isCurrentUser = false }) => {
+  const { posicao, nome, avatarUrl, nivel, optica } = user
+
+  const valor = metric === 'moedinhas' ? user.rankingMoedinhas ?? 0 : user.rankingPontosReais ?? 0;
+  const valorFormatado = valor.toLocaleString('pt-BR', {
+    minimumFractionDigits: metric === 'pontos' ? 2 : 0,
+    maximumFractionDigits: metric === 'pontos' ? 2 : 0,
+  });
+  const labelMetrica = metric === 'moedinhas' ? 'Moedinhas' : 'Pontos (R$)';
 
   return (
     <motion.div
@@ -167,15 +176,18 @@ const RankingListItem: React.FC<Props> = ({ user, isCurrentUser = false }) => {
         {/* Level Badge */}
         {nivel && <NivelBadge nivel={nivel} />}
 
-      {/* Moedinhas - CORRIGIDO: Garante visibilidade */}
-      <div className="flex flex-col items-end gap-0.5 min-w-[100px] lg:min-w-[120px]">
-        <span className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent leading-none">
-          {user.rankingMoedinhas.toLocaleString('pt-BR')}
-        </span>
-        <span className="text-[10px] lg:text-xs text-muted-foreground uppercase tracking-wider font-medium">
-          Moedinhas
-        </span>
-      </div>
+        {/* Valor da Métrica */}
+        <div className="flex items-center gap-2 min-w-[120px]">
+            <Star className={`h-5 w-5 ${metric === 'moedinhas' ? 'text-amber-400' : 'text-green-400'}`} />
+            <div className="flex flex-col items-start">
+                <span className="text-lg font-bold text-foreground leading-none">
+                    {valorFormatado}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                    {labelMetrica}
+                </span>
+            </div>
+        </div>
       </div>
 
       {/* Hover Glow Effect */}

@@ -57,11 +57,23 @@ let AutenticacaoService = class AutenticacaoService {
     }
     async registrar(dados, req) {
         const cpfLimpo = this._limparCpf(dados.cpf);
+        if (!this._validarCpf(cpfLimpo)) {
+            await this._registrarlogAutenticacao({
+                tipo: 'REGISTRO_FALHA_CPF_INVALIDO',
+                email: dados.email,
+                cpf: dados.cpf,
+                usuarioId: null,
+                req,
+                detalhes: { motivo: 'cpf_nao_passou_na_validacao_de_digitos' },
+            });
+            throw new common_1.BadRequestException('O CPF fornecido é inválido.');
+        }
         const usuarioExistente = await this.prisma.usuario.findFirst({
             where: {
                 OR: [{ email: dados.email }, { cpf: cpfLimpo }],
             },
             select: {
+                id: true,
                 email: true,
                 cpf: true,
             },
@@ -74,7 +86,7 @@ let AutenticacaoService = class AutenticacaoService {
                 tipo: tipoDuplicacao,
                 email: dados.email,
                 cpf: cpfLimpo,
-                usuarioId: null,
+                usuarioId: usuarioExistente.id,
                 req,
                 detalhes: {
                     motivo: tipoDuplicacao === 'REGISTRO_DUPLICADO_EMAIL'
@@ -85,34 +97,40 @@ let AutenticacaoService = class AutenticacaoService {
             throw new common_1.ConflictException('Dados já cadastrados no sistema. Verifique as informações fornecidas.');
         }
         const senhaHash = await bcrypt.hash(dados.senha, 10);
-        const novoUsuario = await this.prisma.usuario.create({
-            data: {
-                nome: dados.nome,
-                email: dados.email,
-                senhaHash,
-                cpf: cpfLimpo,
-                papel: 'VENDEDOR',
-                status: 'PENDENTE',
-                opticaId: dados.opticaId,
-            },
-            select: {
-                id: true,
-                nome: true,
-                email: true,
-                papel: true,
-                status: true,
-            },
-        });
-        await this._registrarlogAutenticacao({
-            tipo: 'REGISTRO_SUCESSO',
-            email: dados.email,
-            cpf: cpfLimpo,
-            usuarioId: novoUsuario.id,
-            req,
-            detalhes: {
-                papel: novoUsuario.papel,
-                status: novoUsuario.status,
-            },
+        const novoUsuario = await this.prisma.$transaction(async (tx) => {
+            const usuario = await tx.usuario.create({
+                data: {
+                    nome: dados.nome,
+                    email: dados.email,
+                    senhaHash,
+                    cpf: cpfLimpo,
+                    papel: 'VENDEDOR',
+                    status: 'PENDENTE',
+                    opticaId: dados.opticaId,
+                },
+                select: {
+                    id: true,
+                    nome: true,
+                    email: true,
+                    papel: true,
+                    status: true,
+                },
+            });
+            await tx.logAutenticacao.create({
+                data: {
+                    tipo: 'REGISTRO_SUCESSO',
+                    email: usuario.email,
+                    cpf: cpfLimpo,
+                    usuarioId: usuario.id,
+                    ipAddress: this._extrairIp(req),
+                    userAgent: this._extrairUserAgent(req),
+                    detalhes: {
+                        papel: usuario.papel,
+                        status: usuario.status,
+                    },
+                },
+            });
+            return usuario;
         });
         if (process.env.NODE_ENV !== 'production') {
             console.log('[AUTENTICACAO] Novo vendedor registrado:', {
@@ -240,23 +258,28 @@ let AutenticacaoService = class AutenticacaoService {
             throw new common_1.NotFoundException('Token de reset inválido ou expirado. Solicite um novo token.');
         }
         const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
-        await this.prisma.usuario.update({
-            where: { id: usuario.id },
-            data: {
-                senhaHash: novaSenhaHash,
-                tokenResetarSenha: null,
-                tokenResetarSenhaExpira: null,
-            },
-        });
-        await this._registrarlogAutenticacao({
-            tipo: 'RESET_TOKEN_SUCESSO',
-            email: usuario.email,
-            cpf: usuario.cpf,
-            usuarioId: usuario.id,
-            req,
-            detalhes: {
-                motivo: 'senha_resetada_com_sucesso',
-            },
+        await this.prisma.$transaction(async (tx) => {
+            await tx.usuario.update({
+                where: { id: usuario.id },
+                data: {
+                    senhaHash: novaSenhaHash,
+                    tokenResetarSenha: null,
+                    tokenResetarSenhaExpira: null,
+                },
+            });
+            await tx.logAutenticacao.create({
+                data: {
+                    tipo: 'RESET_TOKEN_SUCESSO',
+                    email: usuario.email,
+                    cpf: usuario.cpf,
+                    usuarioId: usuario.id,
+                    ipAddress: this._extrairIp(req),
+                    userAgent: this._extrairUserAgent(req),
+                    detalhes: {
+                        motivo: 'senha_resetada_com_sucesso',
+                    },
+                },
+            });
         });
         if (process.env.NODE_ENV !== 'production') {
             console.log('[AUTENTICACAO] Senha resetada com sucesso:', {
@@ -282,14 +305,29 @@ let AutenticacaoService = class AutenticacaoService {
         }
         return cpfLimpo;
     }
+    _validarCpf(cpfLimpo) {
+        if (/^(\d)\1{10}$/.test(cpfLimpo)) {
+            if (process.env.NODE_ENV !== 'production') {
+                console.warn(`[VALIDACAO] CPF inválido detectado (dígitos repetidos): ${cpfLimpo}`);
+            }
+            return false;
+        }
+        return true;
+    }
+    _extrairIp(req) {
+        return (req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
+            req?.headers?.['x-real-ip'] ||
+            req?.ip ||
+            req?.connection?.remoteAddress ||
+            'unknown');
+    }
+    _extrairUserAgent(req) {
+        return req?.headers?.['user-agent'] || null;
+    }
     async _registrarlogAutenticacao(dados) {
         try {
-            const ipAddress = dados.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
-                dados.req?.headers?.['x-real-ip'] ||
-                dados.req?.ip ||
-                dados.req?.connection?.remoteAddress ||
-                'unknown';
-            const userAgent = dados.req?.headers?.['user-agent'] || null;
+            const ipAddress = this._extrairIp(dados.req);
+            const userAgent = this._extrairUserAgent(dados.req);
             await this.prisma.logAutenticacao.create({
                 data: {
                     tipo: dados.tipo,

@@ -16,10 +16,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RankingController = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("./../comum/guards/jwt-auth.guard");
-const papeis_guard_1 = require("./../comum/guards/papeis.guard");
-const papeis_decorator_1 = require("./../comum/decorators/papeis.decorator");
 const ranking_service_1 = require("./ranking.service");
 const paginacao_ranking_dto_1 = require("./dto/paginacao-ranking.dto");
+const gerente_matriz_guard_1 = require("./guards/gerente-matriz.guard");
 let RankingController = RankingController_1 = class RankingController {
     constructor(rankingService) {
         this.rankingService = rankingService;
@@ -30,7 +29,7 @@ let RankingController = RankingController_1 = class RankingController {
     }
     async getRankingPorFilial(req) {
         const usuario = req.user;
-        this.logger.log(`[GET /por-filial] [GERENTE] Solicitado por: ${usuario.id} (${usuario.email})`);
+        this.logger.log(`[GET /por-filial] [GERENTE MATRIZ] Solicitado por: ${usuario.id} (${usuario.email})`);
         return this.rankingService.getRankingFiliaisParaMatriz(usuario.id);
     }
 };
@@ -43,8 +42,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RankingController.prototype, "getRankingGeral", null);
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, papeis_guard_1.PapeisGuard),
-    (0, papeis_decorator_1.Papeis)('GERENTE'),
+    (0, common_1.UseGuards)(gerente_matriz_guard_1.GerenteMatrizGuard),
     (0, common_1.Get)('por-filial'),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
